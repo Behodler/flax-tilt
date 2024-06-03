@@ -14,3 +14,5 @@ docs/
 .env
 
 private/
+lib/flax/
+lib/openzeppelin-contracts/
