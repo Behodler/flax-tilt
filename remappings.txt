@@ -1,2 +1,1 @@
 @behodler/flax=lib/flax/src
-@superfluid/contracts=lib/ethereum-contracts/contracts
