@@ -1,1 +1,2 @@
 @behodler/flax=lib/flax/src
+@openzeppelin/contracts = lib/flax/lib/openzeppelin-contracts/contracts

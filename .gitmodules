@@ -4,3 +4,6 @@
 [submodule "lib/flax"]
 	path = lib/flax
 	url = https://github.com/Behodler/Flax
+[submodule "lib/protocol-monorepo"]
+	path = lib/protocol-monorepo
+	url = https://github.com/superfluid-finance/protocol-monorepo
