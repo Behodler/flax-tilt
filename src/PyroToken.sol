@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@oz_tilt/contracts/access/Ownable.sol";
+import "@oz_tilt/contracts/utils/ReentrancyGuard.sol";
 
 //Explanation: Identical to original PyroToken ERC20 but renamed to avoid clashes with openzeppelin
 import "./PyroERC20.sol";

@@ -9,7 +9,7 @@ import "./UniswapV2/UniswapV2OracleLibrary.sol";
 import "./UniswapV2/UniswapV2Library.sol";
 import "./Errors.sol";
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@oz_tilt/contracts/access/Ownable.sol";
 
 /**
  *@title Oracle

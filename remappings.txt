@@ -1,1 +1,3 @@
 @behodler/flax=lib/flax/src
+@oz_tilt/contracts=lib/openzeppelin-contracts/contracts
+@superfluid/contracts=lib/ethereum-contracts/contracts
