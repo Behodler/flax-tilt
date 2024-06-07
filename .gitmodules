@@ -8,3 +8,6 @@
 	path = lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
 
+[submodule "lib/superfluid"]
+	path = lib/superfluid
+	url = https://github.com/Behodler/superfluid
