@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 import "@oz_tilt/contracts/access/Ownable.sol";
 import "@oz_tilt/contracts/token/ERC20/IERC20.sol";
 import "@behodler/flax/IIssuer.sol";
-import "@behodler/flax/ICoupon.sol";
+import {ICoupon} from "@behodler/flax/ICoupon.sol";
 import "./UniswapV2/IUniswapV2Factory.sol";
 import "./UniswapV2/IUniswapV2Pair.sol";
 import "./UniswapV2/IUniswapV2Router02.sol";
