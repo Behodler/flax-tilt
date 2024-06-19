@@ -51,8 +51,6 @@ contract UniswapHelper is
         //Explanation: no Dai targeting.
         //address DAI;
         OracleSet oracleSet;
-        uint discount; //(0-1000),new var to reduce flx minted
-        uint pyroPremium; // (0-1000)
     }
 
     UniVARS public VARS;
@@ -95,7 +93,7 @@ contract UniswapHelper is
     fallback() external payable ethReceiver {
         // If Ether is sent, redirect to mint function
         if (msg.value > 0) {
-            tiltFlax(msg.sender, msg.value);
+            tiltFlax(msg.sender, msg.value, 4);
             (msg.sender, msg.value);
         } else {
             // Revert if no Ether is sent and no valid function is called
@@ -115,9 +113,7 @@ contract UniswapHelper is
         address flx, //flan,
         //Explanation: omitted
         // uint8 priceBoostOvershoot,
-        address oracle,
-        uint discount,
-        uint pyroPremium
+        address oracle
     )
         public
         //Explanation: different governance
@@ -137,8 +133,6 @@ contract UniswapHelper is
         // }
         // VARS.priceBoostOvershoot = priceBoostOvershoot;
 
-        VARS.discount = discount % 1000;
-        VARS.pyroPremium = pyroPremium %1000;
         LimboOracleLike limboOracle = LimboOracleLike(oracle);
         VARS.factory = limboOracle.factory();
 
@@ -222,15 +216,28 @@ contract UniswapHelper is
         _;
     }
 
-    function mintPyroFlax() external payable ethReceiver {
-        tiltFlax(msg.sender, msg.value);
+    /*
+    30 = 1
+    40 = 4
+    60 = 8
+    120 = 18
+    360 = 99
+    */
+    uint[5] public termLength = [30, 40, 60, 120, 360];
+    uint[5] public roi = [1, 4, 8, 18, 99];
+
+    //note: we can hardcode these return relationships because the contract can always be redeployed
+    function mintPyroFlax(uint termChoice) external payable ethReceiver {
+        tiltFlax(msg.sender, msg.value, termChoice);
     }
 
     //function signature changes: renamed from stabilizeFlan and made private
     function tiltFlax(
         address minter,
-        uint256 eth //mintedSCX replaced with eth
+        uint256 eth, //mintedSCX replaced with eth
+        uint termChoice
     ) private returns (uint256 lpMinted) {
+        require(termChoice < 5, "Invalid term duratioN");
         // if (msg.sender != limbo) {
         //     revert OnlyLimbo(msg.sender, limbo);
         // }
@@ -249,20 +256,24 @@ contract UniswapHelper is
         // uint256 DesiredFinalFlanOnLP = (finalSCXBalanceOnLP *
         //     priceTilting.DAIPerSCX) / SPOT;
 
-        //expectedFLX is the FLX we'd mint to keep prices stable
-        uint expectedFLX = (priceTilting.FlaxPerWeth * eth) / SPOT;
-        uint flxForPyro = (expectedFLX*(1000+VARS.pyroPremium))/1000;
-        uint finalFLX = (VARS.discount*expectedFLX)/1000;
+        //This is the true eth value of the Flx and what he sender is at the very least entitled to.
+        uint entitledFlx = (priceTilting.FlaxPerWeth * eth) / SPOT;
+        //we assume 100% growth in FLX which is split between LP and user.
+        uint userPremium = (roi[termChoice] * entitledFlx) / 100;
+        uint tiltPortion = entitledFlx - userPremium;
+        require(
+            IERC20(VARS.flax).balanceOf(address(this)) >= entitledFlx * 2,
+            "Tilter: insufficient FLX"
+        );
 
         //Explanation: reference pair is now flx_weth
         // address pair = address(VARS.oracleSet.fln_scx);
         address pair = address(VARS.oracleSet.flx_weth);
-        ICoupon(VARS.flax).mint(finalFLX, pair);
+  
+        IERC20(VARS.flax).transfer(pair, tiltPortion);
         IWETH(VARS.weth).transfer(pair, eth);
         lpMinted = VARS.oracleSet.flx_weth.mint(VARS.blackHole);
-
-        //TODO: write a contract that receives flax,mints pyro and streams on furo to recipient over 40 days
-
+//TODO: Hedgey stream accoding to schedules
         //Explanation: price stability logic not necessary
         // if (priceTilting.currentFLNInFLN_SCX < DesiredFinalFlanOnLP) {
         //     uint256 flanToMint = ((DesiredFinalFlanOnLP -
