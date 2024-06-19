@@ -10,6 +10,7 @@ import "./UniswapV2/IUniswapV2Router02.sol";
 import "./LimboOracleLike.sol";
 import "./Errors.sol";
 import "./IWeth.sol";
+import "./IStreamAdapter.sol";
 
 contract BlackHole {}
 
@@ -51,6 +52,7 @@ contract UniswapHelper is
         //Explanation: no Dai targeting.
         //address DAI;
         OracleSet oracleSet;
+        IStreamAdapter stream;
     }
 
     UniVARS public VARS;
@@ -113,7 +115,8 @@ contract UniswapHelper is
         address flx, //flan,
         //Explanation: omitted
         // uint8 priceBoostOvershoot,
-        address oracle
+        address oracle,
+        address stream
     )
         public
         //Explanation: different governance
@@ -126,7 +129,7 @@ contract UniswapHelper is
 
         VARS.weth = weth;
         VARS.flax = flx;
-
+        VARS.stream = IStreamAdapter(stream);
         //Explanation: see above
         // if (priceBoostOvershoot > 99) {
         //     revert PriceOvershootTooHigh(priceBoostOvershoot);
@@ -273,7 +276,7 @@ contract UniswapHelper is
         IERC20(VARS.flax).transfer(pair, tiltPortion);
         IWETH(VARS.weth).transfer(pair, eth);
         lpMinted = VARS.oracleSet.flx_weth.mint(VARS.blackHole);
-//TODO: Hedgey stream accoding to schedules
+        VARS.stream.lock(minter,userPremium+entitledFlx,termLength[termChoice]);
         //Explanation: price stability logic not necessary
         // if (priceTilting.currentFLNInFLN_SCX < DesiredFinalFlanOnLP) {
         //     uint256 flanToMint = ((DesiredFinalFlanOnLP -

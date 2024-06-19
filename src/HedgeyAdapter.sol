@@ -19,16 +19,16 @@ contract HedgeyTokenLocker is IStreamAdapter {
         uint durationInDays
     ) external {
         //No need for helper libs because this assumes flax
-        _flax.transferFrom(msg.sender, address(this), quantity);
+        _flax.transferFrom(msg.sender, address(this), amount);
         uint durationInSeconds = durationInDays * 24 * 60 * 60;
         //linear streaming per second
-        uint rate = amount/durationInSeconds;
+        uint rate = amount / durationInSeconds;
 
         _hedgey.createPlan(
             recipient,
             address(_flax),
             amount,
-            now + 60,
+            block.timestamp + 60,
             0,
             rate,
             1
