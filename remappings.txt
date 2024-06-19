@@ -1,3 +1,4 @@
 @behodler/flax=lib/flax/src
 @oz_tilt/contracts=lib/openzeppelin-contracts/contracts
 @superfluid/contracts=lib/superfluid/contracts
+@hedgey/lockup=lib/Locked_VestingTokenPlans/contracts/LockupPlans
