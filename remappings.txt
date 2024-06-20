@@ -3,3 +3,6 @@
 @superfluid/contracts=lib/superfluid/contracts
 @hedgey/lockup=lib/Locked_VestingTokenPlans/contracts/LockupPlans
 @oz_hedgey/contracts=lib/Locked_VestingTokenPlans/contracts/oz
+@uniswap/core=lib/UniswapV2CoreFoundryFriendly/src
+@uniswap/periphery=lib/UniswapV2PeripheryFoundryFriendly/src
+@uniswap/v2-core/contracts/=lib/UniswapV2CoreFoundryFriendly/src

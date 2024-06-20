@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
-import "./UniswapV2/IUniswapV2Factory.sol";
+import "@uniswap/core/interfaces/IUniswapV2Factory.sol";
 /**
  *@title LimboOracleLike
  * @author Justin Goro
