@@ -10,3 +10,6 @@
 [submodule "lib/Locked_VestingTokenPlans"]
 	path = lib/Locked_VestingTokenPlans
 	url = https://github.com/Behodler/Locked_VestingTokenPlans
+[submodule "lib/UniswapV2PeripheryFoundryFriendly"]
+	path = lib/UniswapV2PeripheryFoundryFriendly
+	url = https://github.com/Behodler/UniswapV2PeripheryFoundryFriendly
