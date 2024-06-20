@@ -13,3 +13,6 @@
 [submodule "lib/UniswapV2PeripheryFoundryFriendly"]
 	path = lib/UniswapV2PeripheryFoundryFriendly
 	url = https://github.com/Behodler/UniswapV2PeripheryFoundryFriendly
+[submodule "lib/UniswapV2CoreFoundryFriendly"]
+	path = lib/UniswapV2CoreFoundryFriendly
+	url = https://github.com/Behodler/UniswapV2CoreFoundryFriendly
