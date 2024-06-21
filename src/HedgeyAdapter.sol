@@ -4,7 +4,7 @@ import "@oz_tilt/contracts/token/ERC20/IERC20.sol";
 import {TokenLockupPlans} from "@hedgey/lockup/TokenLockupPlans.sol";
 import {IStreamAdapter} from "./IStreamAdapter.sol";
 
-contract HedgeyTokenLocker is IStreamAdapter {
+contract HedgeyAdapter is IStreamAdapter {
     IERC20 _flax;
     TokenLockupPlans _hedgey;
 
