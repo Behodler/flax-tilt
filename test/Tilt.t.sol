@@ -12,6 +12,8 @@ import {Oracle} from "src/Oracle.sol";
 import {TokenLockupPlans} from "@hedgey/lockup/TokenLockupPlans.sol";
 import {HedgeyAdapter} from "src/HedgeyAdapter.sol";
 import {UniswapHelper} from "src/UniswapHelper.sol";
+import {IERC20} from "@oz_tilt/contracts/token/ERC20/IERC20.sol";
+import "src/Errors.sol";
 
 contract Tilt is Test {
     Coupon flax;
@@ -59,7 +61,7 @@ contract Tilt is Test {
         );
         require(flx_weth_address != address(0), "failed to initialize pair");
         flax_weth = IUniswapV2Pair(flx_weth_address);
-        vm.deal(payable(address(this)), 3 ether);
+        vm.deal(payable(address(this)), 300 ether);
         WETH().deposit{value: 3 ether}();
         flax.mint(200 ether, flx_weth_address);
         WETH().transfer(flx_weth_address, 3 ether);
@@ -126,6 +128,7 @@ contract Tilt is Test {
     }
 
     function testSetupWorked() public {}
+
     /* Tests TODO:
     1. test invalid inputs such as incorrect duraiton choice
     2. test tilt with no preloaded FLX
@@ -133,4 +136,55 @@ contract Tilt is Test {
     4. test for each choice that the lockup is the correct duration, that the price and the tilted correctly.
     5. Time test to see that stream flows correctly.
     */
+
+    function testInvalidTermChoiceFails() public {
+        vm.expectRevert(bytes("Invalid term duration"));
+        priceTilter.tiltFlax{value: 3 ether}(6);
+    }
+
+    function testTooLittleEthFails() public {
+        vm.expectRevert(bytes("Eth required"));
+        priceTilter.tiltFlax{value: 999_999}(1);
+    }
+
+    event oracleFlaxValueOfEth(uint val);
+
+    function test2xFlxDeduction() public {
+        uint initialFlax = IERC20(address(flax)).balanceOf(
+            address(priceTilter)
+        );
+        vm.assertEq(initialFlax, 0);
+        uint ethToUse = (25 ether) / 10;
+        uint SPOT = 1e8;
+        uint flaxValueOfEth = (oracle.consult(
+            address(WETH()),
+            address(flax),
+            SPOT
+        ) * ethToUse) / SPOT;
+
+        vm.assertGt(flaxValueOfEth, 0);
+        emit oracleFlaxValueOfEth(flaxValueOfEth);
+        //TODO: send in 2x - 1 and assert revert. Then send in 1 and assert success
+
+        uint tiltUsedValue = flaxValueOfEth * 2;
+        flax.mint(tiltUsedValue - 1, address(priceTilter));
+        // vm.expectRevert(bytes("Tilter: insufficient FLX"));
+        vm.deal(payable(address(user1)), 300 ether);
+        vm.prank(user1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                InsufficientFlaxForTilting.selector,
+                tiltUsedValue - 1,
+                tiltUsedValue
+            )
+        );
+        priceTilter.tiltFlax{value: ethToUse}(0);
+        vm.stopPrank();
+
+        flax.mint(1, address(priceTilter));
+        vm.prank(user1);
+        priceTilter.tiltFlax{value: ethToUse}(0);
+        vm.stopPrank();
+        //success
+    }
 }

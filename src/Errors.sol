@@ -15,3 +15,4 @@ error NotAContract(address);
 error ApproveToNonZero(address, address, uint);
 error OperationFailure();
 error AllowanceExceeded(uint, uint);
+error InsufficientFlaxForTilting(uint flaxBalance,uint requiredAmount);

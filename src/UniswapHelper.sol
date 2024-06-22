@@ -184,8 +184,8 @@ contract UniswapHelper is
         returns (PriceTiltVARS memory tilt)
     {
         tilt.FlaxPerWeth = VARS.oracleSet.oracle.consult(
-            VARS.flax,
             VARS.weth,
+            VARS.flax,
             SPOT
         );
 
@@ -230,7 +230,8 @@ contract UniswapHelper is
     uint[5] public roi = [1, 4, 8, 18, 99];
 
     //note: we can hardcode these return relationships because the contract can always be redeployed
-    function mintPyroFlax(uint termChoice) external payable ethReceiver {
+    function tiltFlax(uint termChoice) external payable ethReceiver {
+        require(msg.value > 1000_000, "Eth required");
         tiltFlax(msg.sender, msg.value, termChoice);
     }
 
@@ -240,7 +241,7 @@ contract UniswapHelper is
         uint256 eth, //mintedSCX replaced with eth
         uint termChoice
     ) private returns (uint256 lpMinted) {
-        require(termChoice < 5, "Invalid term duratioN");
+        require(termChoice < 5, "Invalid term duration");
         // if (msg.sender != limbo) {
         //     revert OnlyLimbo(msg.sender, limbo);
         // }
@@ -264,19 +265,29 @@ contract UniswapHelper is
         //we assume 100% growth in FLX which is split between LP and user.
         uint userPremium = (roi[termChoice] * entitledFlx) / 100;
         uint tiltPortion = entitledFlx - userPremium;
-        require(
-            IERC20(VARS.flax).balanceOf(address(this)) >= entitledFlx * 2,
-            "Tilter: insufficient FLX"
-        );
+        if (IERC20(VARS.flax).balanceOf(address(this)) < entitledFlx * 2) {
+            revert InsufficientFlaxForTilting(
+                IERC20(VARS.flax).balanceOf(address(this)),
+                entitledFlx * 2
+            );
+        }
 
         //Explanation: reference pair is now flx_weth
         // address pair = address(VARS.oracleSet.fln_scx);
         address pair = address(VARS.oracleSet.flx_weth);
-  
+
         IERC20(VARS.flax).transfer(pair, tiltPortion);
         IWETH(VARS.weth).transfer(pair, eth);
         lpMinted = VARS.oracleSet.flx_weth.mint(VARS.blackHole);
-        VARS.stream.lock(minter,userPremium+entitledFlx,termLength[termChoice]);
+        IERC20(VARS.flax).approve(
+            address(VARS.stream),
+            entitledFlx + userPremium
+        );
+        VARS.stream.lock(
+            minter,
+            userPremium + entitledFlx,
+            termLength[termChoice]
+        );
         //Explanation: price stability logic not necessary
         // if (priceTilting.currentFLNInFLN_SCX < DesiredFinalFlanOnLP) {
         //     uint256 flanToMint = ((DesiredFinalFlanOnLP -

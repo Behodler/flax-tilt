@@ -23,7 +23,7 @@ contract HedgeyAdapter is IStreamAdapter {
         uint durationInSeconds = durationInDays * 24 * 60 * 60;
         //linear streaming per second
         uint rate = amount / durationInSeconds;
-
+        _flax.approve(address(_hedgey), amount);
         _hedgey.createPlan(
             recipient,
             address(_flax),
