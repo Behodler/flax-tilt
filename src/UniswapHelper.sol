@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
-import "@oz_tilt/contracts/access/Ownable.sol";
-import "@oz_tilt/contracts/token/ERC20/IERC20.sol";
+import {Ownable} from "@oz_tilt/contracts/access/Ownable.sol";
+import {IERC20} from "@oz_tilt/contracts/token/ERC20/IERC20.sol";
+import {ReentrancyGuard} from "@oz_tilt/contracts/utils/ReentrancyGuard.sol";
 import "@behodler/flax/IIssuer.sol";
 import {ICoupon} from "@behodler/flax/ICoupon.sol";
 import "@uniswap/core/interfaces/IUniswapV2Factory.sol";
@@ -22,7 +23,8 @@ contract BlackHole {}
  * FLN changed to FLX etc
  */
 contract UniswapHelper is
-    Ownable
+    Ownable,
+    ReentrancyGuard
     //Explanation: governance is simple ownable
     /**is Governable, AMMHelper*/
 {
@@ -77,6 +79,7 @@ contract UniswapHelper is
         VARS.flax = flx;
     }
 
+    //Question for community: should this give of Hawking radiation?
     function blackHole() public view returns (address) {
         return VARS.blackHole;
     }
@@ -219,23 +222,20 @@ contract UniswapHelper is
         _;
     }
 
-    /*
-    30 = 1
-    40 = 4
-    60 = 8
-    120 = 18
-    360 = 99
-    */
     uint[5] public termLength = [30, 40, 60, 120, 360];
+    //implicit APY%:     [13,42,58,64, 99]
     uint[5] public roi = [1, 4, 8, 18, 99];
 
     //note: we can hardcode these return relationships because the contract can always be redeployed
-    function tiltFlax(uint termChoice) external payable ethReceiver {
+    function tiltFlax(
+        uint termChoice
+    ) external payable ethReceiver nonReentrant {
         require(msg.value > 1000_000, "Eth required");
         tiltFlax(msg.sender, msg.value, termChoice);
     }
 
     //function signature changes: renamed from stabilizeFlan and made private
+    //function works so long as Flax is never worth more than about 1000 Eth. 
     function tiltFlax(
         address minter,
         uint256 eth, //mintedSCX replaced with eth
