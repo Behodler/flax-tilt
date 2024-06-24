@@ -107,6 +107,7 @@ contract Tilt is Test {
 
         oracle = new Oracle(address(factory()));
         oracle.RegisterPair(flx_weth_address, 1);
+        vm.roll(block.number + 1);
         vm.warp(block.timestamp + 1 hours + 1);
         oracle.update(address(flax), address(WETH()));
 
@@ -215,9 +216,18 @@ contract Tilt is Test {
         testTiltFactory(4);
     }
 
-    function testTiltFactory(uint choice) private {
-        uint roi = roiArray[choice];
+    function testRepeatTilting() external {
+        for (uint i = 0; i < 100; i++) testTiltFactory(3);
+    }
 
+    function testTiltFactory(
+        uint choice
+    ) private returns (uint priceGrowth, uint wethGrowth) {
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 1 hours + 1);
+
+        oracle.update(address(flax), address(WETH()));
+        uint roi = roiArray[choice];
         uint initialWethBalanceOnLP = WETH().balanceOf(flx_weth_address);
 
         //test with a significant amount
@@ -237,7 +247,7 @@ contract Tilt is Test {
         uint wethPerFlaxBefore_oracle = oracle.consult(
             address(flax),
             address(WETH()),
-            1 ether
+            SPOT
         );
 
         //This forgoes taking price impact into account because liquidity actions are not subject to price impact.
@@ -260,7 +270,7 @@ contract Tilt is Test {
 
         //tilt
         flax.mint(expectedFlaxAfterTiltOnLP, address(priceTilter));
-        vm.deal(payable(address(this)), ethToUse);
+        vm.deal(payable(address(user1)), ethToUse);
         vm.prank(user1);
         priceTilter.tiltFlax{value: ethToUse}(choice);
         vm.stopPrank();
@@ -276,6 +286,7 @@ contract Tilt is Test {
         vm.assertEq(flaxOnLPAfterTilt, expectedFlaxAfterTiltOnLP);
 
         //fast forward in time and update oracle and assert new price is within reason of actual average.
+        vm.roll(block.number + 1);
         vm.warp(block.timestamp + 1 hours + 1);
         oracle.update(address(flax), address(WETH()));
 
@@ -294,26 +305,24 @@ contract Tilt is Test {
         uint wethPerFlaxAfter_oracle = oracle.consult(
             address(flax),
             address(WETH()),
-            1 ether
+            SPOT
         );
 
         //sanity check
         vm.assertGt(wethPerFlaxAfter_oracle, wethPerFlaxBefore_oracle);
 
-        uint precision = 1e5;
+        uint precision = 10000;
 
-        uint priceGrowth = ((wethPerFlaxAfter_oracle -
-            wethPerFlaxBefore_oracle) * precision) / wethPerFlaxBefore_oracle;
-        uint wethGrowth = ((wethOnLPAfterTilt - initialWethBalanceOnLP) *
-            precision) / initialWethBalanceOnLP;
+        priceGrowth =
+            ((wethPerFlaxAfter_oracle - wethPerFlaxBefore_oracle) * precision) /
+            wethPerFlaxBefore_oracle;
+        wethGrowth =
+            ((wethOnLPAfterTilt - initialWethBalanceOnLP) * precision) /
+            initialWethBalanceOnLP;
 
         //This should be lower than in similar tests.
         emit tiltGrowth(roi, priceGrowth, wethGrowth);
     }
-
-    //When the LP is old and users are still sending in the same amounts, gas fees become important.
-    //Note the effect on total supply also
-    function testTiltAttentuation() external {}
-
+    
     //TODO: attack tests.
 }
