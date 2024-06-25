@@ -14,6 +14,7 @@ import {HedgeyAdapter} from "src/HedgeyAdapter.sol";
 import {UniswapHelper} from "src/UniswapHelper.sol";
 import {IERC20} from "@oz_tilt/contracts/token/ERC20/IERC20.sol";
 import "src/Errors.sol";
+import "@oz_tilt/contracts/access/Ownable.sol";
 
 contract Tilt is Test {
     Coupon flax;
@@ -25,9 +26,6 @@ contract Tilt is Test {
     TokenLockupPlans hedgey;
     HedgeyAdapter hedgeyAdapter;
     UniswapHelper priceTilter;
-    uint SPOT = 1e8; //Titler tries to get as close to the ratio as possible.
-
-    // Does the price increase when we buy and does the user unlock the correct amout
     event flaxPerEth(uint oracleVal, uint average);
 
     uint[5] public termLength = [30, 40, 60, 120, 360];
@@ -62,6 +60,7 @@ contract Tilt is Test {
         */
         flax = new Coupon("Flax", "FLX");
         flax.setMinter(address(this), true);
+        flax.mint(1000 ether, address(this));
         router = new UniswapV2Router02(
             address(new UniswapV2Factory(address(this))),
             address(new WETH9())
@@ -93,7 +92,7 @@ contract Tilt is Test {
         address[] memory path = new address[](2);
         path[0] = address(flax);
         path[1] = address(WETH());
-        flax.approve(address(router), 10000 ether);
+        flax.approve(address(router), 100000000 ether);
 
         router.swapExactTokensForETH(
             30 ether,
@@ -129,6 +128,9 @@ contract Tilt is Test {
         hedgey = new TokenLockupPlans("MrHedgey", "HEDGE");
         hedgeyAdapter = new HedgeyAdapter(address(flax), address(hedgey));
         priceTilter = new UniswapHelper(address(flax));
+
+        IERC20(address(flax)).approve(address(priceTilter), type(uint).max);
+
         priceTilter.configure(
             address(WETH()),
             address(flax),
@@ -137,21 +139,11 @@ contract Tilt is Test {
         );
 
         //ensure no smelly code introduced behind the scene state changes
-        uint initialFlax = IERC20(address(flax)).balanceOf(
-            address(priceTilter)
-        );
+        uint initialFlax = priceTilter.safeFlaxBalance();
         vm.assertEq(initialFlax, 0);
     }
 
     function testSetupWorked() public {}
-
-    /* Tests TODO:
-    1. test invalid inputs such as incorrect duraiton choice
-    2. test tilt with no preloaded FLX
-    3. test that, for a given price of FLX in Eth, sending in x Eth requires exactly 2x ETH worth of FLX. --DONE
-    4. test for each choice that the lockup is the correct duration, that the price and the tilted correctly.
-    5. Time test to see that stream flows correctly.
-    */
 
     function testInvalidTermChoiceFails() public {
         vm.expectRevert(bytes("Invalid term duration"));
@@ -166,16 +158,16 @@ contract Tilt is Test {
     function test2xFlxDeduction() public {
         uint ethToUse = (25 ether) / 10;
 
-        uint flaxValueOfEth = (oracle.consult(
-            address(WETH()),
-            address(flax),
-            SPOT
-        ) * ethToUse) / SPOT;
+        uint flaxValueOfEth = (
+            oracle.consult(address(WETH()), address(flax), ethToUse)
+        );
 
         vm.assertGt(flaxValueOfEth, 0);
         emit oracleFlaxValueOfEth(flaxValueOfEth);
         uint tiltUsedValue = flaxValueOfEth * 2;
-        flax.mint(tiltUsedValue - 1, address(priceTilter));
+        flax.mint(tiltUsedValue - 1, address(this));
+        IERC20(address(flax)).approve(address(priceTilter), type(uint).max);
+        priceTilter.transferFlaxIn(tiltUsedValue - 1);
 
         vm.deal(payable(address(user1)), 300 ether);
         vm.prank(user1);
@@ -189,15 +181,19 @@ contract Tilt is Test {
         priceTilter.tiltFlax{value: ethToUse}(0);
         vm.stopPrank();
 
-        flax.mint(1, address(priceTilter));
+        priceTilter.transferFlaxIn(1);
         vm.prank(user1);
         priceTilter.tiltFlax{value: ethToUse}(0);
         vm.stopPrank();
         //success
     }
 
+    event planID(uint id);
+
     function testChoice0() external {
-        testTiltFactory(0);
+        uint nftID = testTiltFactory(0);
+        vm.assertGt(nftID, 0);
+        emit planID(nftID);
     }
 
     function testChoice1() external {
@@ -217,12 +213,25 @@ contract Tilt is Test {
     }
 
     function testRepeatTilting() external {
-        for (uint i = 0; i < 100; i++) testTiltFactory(3);
+        uint iterations;
+        try this.getEnvUint("ITERATIONS") returns (uint value) {
+            iterations = value;
+        } catch {
+            iterations = 100; // default value
+        }
+        for (uint i = 0; i < iterations; i++) {
+            flax.mint((1000_000 * i) * (1 ether), address(this));
+            uint nftID = testTiltFactory(3);
+            emit planID(nftID);
+            vm.assertGe(nftID, i);
+        }
     }
 
-    function testTiltFactory(
-        uint choice
-    ) private returns (uint priceGrowth, uint wethGrowth) {
+    function getEnvUint(string memory key) public view returns (uint) {
+        return vm.envUint(key);
+    }
+
+    function testTiltFactory(uint choice) private returns (uint nft) {
         vm.roll(block.number + 1);
         vm.warp(block.timestamp + 1 hours + 1);
 
@@ -234,30 +243,28 @@ contract Tilt is Test {
         uint ethToUse = initialWethBalanceOnLP / 10;
         uint flaxOnLP = IERC20(address(flax)).balanceOf(flx_weth_address);
 
-        uint averageFlaxPerWeth = ((flaxOnLP * SPOT * 1 ether) /
+        uint averageFlaxPerWeth = ((flaxOnLP * 1 ether) /
             initialWethBalanceOnLP) / (1 ether);
 
         uint flaxPerWeth_oracle = oracle.consult(
             address(WETH()),
             address(flax),
-            SPOT
+            ethToUse
         );
 
         //This is to demonstrate price growth from price tilting
         uint wethPerFlaxBefore_oracle = oracle.consult(
             address(flax),
             address(WETH()),
-            SPOT
+            ethToUse
         );
 
-        //This forgoes taking price impact into account because liquidity actions are not subject to price impact.
-        uint flaxPerEthBefore = (flaxPerWeth_oracle * ethToUse) / SPOT;
+        uint flaxPerEthBefore = (flaxPerWeth_oracle);
 
         //This event is just to provide visual diagnostic certainty that the oracle is behaving accurately.
         emit flaxPerEth(flaxPerWeth_oracle, averageFlaxPerWeth);
 
-        //The user is entitled to 100% plus a premium. In this case,the premium is 1%,
-        //giving an implicit APY of 12.6%
+        //The user is entitled to 100% plus a premium.
 
         uint userPremium = (roi * flaxPerEthBefore) / 100;
         uint expectedLPPortion = flaxPerEthBefore - userPremium;
@@ -265,14 +272,13 @@ contract Tilt is Test {
         uint expectedFlaxAfterTiltOnLP = expectedLPPortion + flaxOnLP;
         uint expectedWETHAfterTiltOnLP = initialWethBalanceOnLP + ethToUse;
 
-        uint newExpectedSpotAverage = (expectedFlaxAfterTiltOnLP * SPOT) /
+        uint newExpectedAverage = (expectedFlaxAfterTiltOnLP * ethToUse) /
             expectedWETHAfterTiltOnLP;
-
         //tilt
-        flax.mint(expectedFlaxAfterTiltOnLP, address(priceTilter));
+        priceTilter.transferFlaxIn(expectedFlaxAfterTiltOnLP);
         vm.deal(payable(address(user1)), ethToUse);
         vm.prank(user1);
-        priceTilter.tiltFlax{value: ethToUse}(choice);
+        (nft, ) = priceTilter.tiltFlax{value: ethToUse}(choice);
         vm.stopPrank();
 
         //gather new averages and compare to expected
@@ -290,22 +296,22 @@ contract Tilt is Test {
         vm.warp(block.timestamp + 1 hours + 1);
         oracle.update(address(flax), address(WETH()));
 
-        uint spotflaxValueOfEthAfterTilt = oracle.consult(
+        uint flaxValueOfEthAfterTilt = oracle.consult(
             address(WETH()),
             address(flax),
-            SPOT
+            ethToUse
         );
 
-        emit flaxPerEth(spotflaxValueOfEthAfterTilt, newExpectedSpotAverage);
+        emit flaxPerEth(flaxValueOfEthAfterTilt, newExpectedAverage);
 
-        vm.assertEq(spotflaxValueOfEthAfterTilt, newExpectedSpotAverage);
-        vm.assertLt(spotflaxValueOfEthAfterTilt, flaxPerWeth_oracle);
+        vm.assertEq(flaxValueOfEthAfterTilt, newExpectedAverage);
+        vm.assertLt(flaxValueOfEthAfterTilt, flaxPerWeth_oracle);
 
         //This is to demonstrate price growth from price tilting
         uint wethPerFlaxAfter_oracle = oracle.consult(
             address(flax),
             address(WETH()),
-            SPOT
+            ethToUse
         );
 
         //sanity check
@@ -313,16 +319,119 @@ contract Tilt is Test {
 
         uint precision = 10000;
 
-        priceGrowth =
-            ((wethPerFlaxAfter_oracle - wethPerFlaxBefore_oracle) * precision) /
-            wethPerFlaxBefore_oracle;
-        wethGrowth =
-            ((wethOnLPAfterTilt - initialWethBalanceOnLP) * precision) /
-            initialWethBalanceOnLP;
+        uint priceGrowth = ((wethPerFlaxAfter_oracle -
+            wethPerFlaxBefore_oracle) * precision) / wethPerFlaxBefore_oracle;
+        uint wethGrowth = ((wethOnLPAfterTilt - initialWethBalanceOnLP) *
+            precision) / initialWethBalanceOnLP;
 
         //This should be lower than in similar tests.
         emit tiltGrowth(roi, priceGrowth, wethGrowth);
     }
-    
-    //TODO: attack tests.
+
+    function testMinimumEth() external {
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 1 hours + 1);
+
+        oracle.update(address(flax), address(WETH()));
+
+        //Note that hedgey validates boundaries as well
+        uint ethToUse = 1000_001;
+
+        address tiltOwner = priceTilter.owner();
+        require(
+            tiltOwner == address(this),
+            "Price tilter owned by someone else"
+        );
+        //tilt
+        priceTilter.transferFlaxIn(10 ether);
+        vm.deal(payable(address(user1)), ethToUse);
+        vm.prank(user1);
+        priceTilter.tiltFlax{value: ethToUse}(0);
+        vm.stopPrank();
+    }
+
+    function testAddingFlaxToTilterAsNotOwnerFails() external {
+        address wellIntentioned = address(0x6);
+        flax.mint(100 ether, wellIntentioned);
+        vm.deal(payable(address(wellIntentioned)), 1 ether);
+        vm.prank(wellIntentioned);
+        IERC20(address(flax)).approve(address(priceTilter), type(uint).max);
+        vm.stopPrank();
+        vm.prank(wellIntentioned);
+        bytes4 selector = bytes4(
+            keccak256("OwnableUnauthorizedAccount(address)")
+        );
+        vm.expectRevert(abi.encodeWithSelector(selector, wellIntentioned));
+        priceTilter.transferFlaxIn(10 ether);
+        vm.stopPrank();
+    }
+
+    function test_try_tilt_by_adding_flax_via_regular_ERC20_transfer() public {
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 1 hours + 1);
+        uint choice = 2;
+        oracle.update(address(flax), address(WETH()));
+        uint initialWethBalanceOnLP = WETH().balanceOf(flx_weth_address);
+        //test with a significant amount
+        uint ethToUse = initialWethBalanceOnLP / 10;
+
+        //tilt
+        flax.mint(11e20, address(this));
+        IERC20(address(flax)).transfer(address(priceTilter), 10e20);
+        vm.deal(payable(address(user1)), ethToUse);
+        vm.prank(user1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                InsufficientFlaxForTilting.selector,
+                0,
+                23919999999999999958
+            )
+        );
+        priceTilter.tiltFlax{value: ethToUse}(choice);
+        vm.stopPrank();
+    }
+
+    event priceGrowth(uint growth);
+
+    function testEthWhale() external {
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 1 hours + 1);
+
+        oracle.update(address(flax), address(WETH()));
+
+        //Note that hedgey validates boundaries as well
+        uint ethToUse = 10000 ether;
+
+        uint ethPerFlxBefore = oracle.consult(
+            address(flax),
+            address(WETH()),
+            ethToUse
+        );
+
+        flax.mint(2251671899420289854216768, address(this));
+        priceTilter.transferFlaxIn(2251671899420289854216768);
+
+        vm.deal(payable(address(user1)), ethToUse);
+        vm.prank(user1);
+        priceTilter.tiltFlax{value: ethToUse}(4);
+        vm.stopPrank();
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 1 hours + 1);
+        oracle.update(address(flax), address(WETH()));
+
+        uint ethPerFlxAfter = oracle.consult(
+            address(flax),
+            address(WETH()),
+            ethToUse
+        );
+
+        uint growth = ((ethPerFlxAfter - ethPerFlxBefore)) / ethPerFlxBefore;
+
+        //assert significant price growth
+        vm.assertGt(ethPerFlxAfter, ethPerFlxBefore * 90);
+        emit priceGrowth(growth);
+    }
+
+    event ethPurchased(uint eth, uint reserveRemaining);
 }

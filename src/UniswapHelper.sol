@@ -133,6 +133,7 @@ contract UniswapHelper is
         VARS.weth = weth;
         VARS.flax = flx;
         VARS.stream = IStreamAdapter(stream);
+
         //Explanation: see above
         // if (priceBoostOvershoot > 99) {
         //     revert PriceOvershootTooHigh(priceBoostOvershoot);
@@ -222,6 +223,24 @@ contract UniswapHelper is
         _;
     }
 
+    uint public safeFlaxBalance;
+
+    function transferFlaxIn(uint amount) public onlyOwner {
+        safeFlaxBalance += amount;
+        IERC20(address(VARS.flax)).transferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+    }
+
+    function transferOut(address recipient, uint amount) private {
+        if (amount > safeFlaxBalance) {
+            revert InsufficientFlaxForTilting(safeFlaxBalance, amount);
+        }
+        IERC20(address(VARS.flax)).transfer(recipient, amount);
+    }
+
     uint[5] public termLength = [30, 40, 60, 120, 360];
     //implicit APY%:     [13,42,58,64, 99]
     uint[5] public roi = [1, 4, 8, 18, 99];
@@ -229,24 +248,41 @@ contract UniswapHelper is
     //note: we can hardcode these return relationships because the contract can always be redeployed
     function tiltFlax(
         uint termChoice
-    ) external payable ethReceiver nonReentrant {
+    )
+        external
+        payable
+        ethReceiver
+        nonReentrant
+        returns (uint nft, uint flxPurchased)
+    {
         require(msg.value > 1000_000, "Eth required");
-        tiltFlax(msg.sender, msg.value, termChoice);
+        (nft, flxPurchased) = tiltFlax(msg.sender, msg.value, termChoice);
     }
 
+    event breakPoint(uint line);
+
     //function signature changes: renamed from stabilizeFlan and made private
-    //function works so long as Flax is never worth more than about 1000 Eth. 
+    //function works so long as Flax is never worth more than about 1000 Eth.
     function tiltFlax(
         address minter,
         uint256 eth, //mintedSCX replaced with eth
         uint termChoice
-    ) private returns (uint256 lpMinted) {
+    ) private returns (uint nftCreated, uint flxPurchased) {
         require(termChoice < 5, "Invalid term duration");
+
         // if (msg.sender != limbo) {
         //     revert OnlyLimbo(msg.sender, limbo);
         // }
         generateFLXQuote();
-        PriceTiltVARS memory priceTilting = getPriceTiltVARS();
+        //Explanation: LIMBO has no purchase amount but here, we have the eth purchase value
+        // PriceTiltVARS memory priceTilting = getPriceTiltVARS();
+
+        //THis number represents what eth would buy on Uniswap, adjusting for oracle inaccuracy
+        uint entitledFlx = VARS.oracleSet.oracle.consult(
+            VARS.weth,
+            VARS.flax,
+            eth
+        );
 
         //Explanation: FLX does not burn in any way
         // (uint256 transferFee, uint256 burnFee, ) = BehodlerLike(VARS.behodler)
@@ -261,9 +297,9 @@ contract UniswapHelper is
         //     priceTilting.DAIPerSCX) / SPOT;
 
         //This is the true eth value of the Flx and what he sender is at the very least entitled to.
-        uint entitledFlx = (priceTilting.FlaxPerWeth * eth) / SPOT;
         //we assume 100% growth in FLX which is split between LP and user.
         uint userPremium = (roi[termChoice] * entitledFlx) / 100;
+        flxPurchased = entitledFlx + userPremium;
         uint tiltPortion = entitledFlx - userPremium;
         if (IERC20(VARS.flax).balanceOf(address(this)) < entitledFlx * 2) {
             revert InsufficientFlaxForTilting(
@@ -275,19 +311,19 @@ contract UniswapHelper is
         //Explanation: reference pair is now flx_weth
         // address pair = address(VARS.oracleSet.fln_scx);
         address pair = address(VARS.oracleSet.flx_weth);
-
-        IERC20(VARS.flax).transfer(pair, tiltPortion);
+        emit breakPoint(314);
+        transferOut(pair, tiltPortion);
+        emit breakPoint(316);
         IWETH(VARS.weth).transfer(pair, eth);
-        lpMinted = VARS.oracleSet.flx_weth.mint(VARS.blackHole);
-        IERC20(VARS.flax).approve(
-            address(VARS.stream),
-            entitledFlx + userPremium
-        );
-        VARS.stream.lock(
+        VARS.oracleSet.flx_weth.mint(VARS.blackHole);
+        transferOut(address(VARS.stream), userPremium + entitledFlx);
+        emit breakPoint(319);
+        nftCreated = VARS.stream.lock(
             minter,
             userPremium + entitledFlx,
             termLength[termChoice]
         );
+        emit breakPoint(320);
         //Explanation: price stability logic not necessary
         // if (priceTilting.currentFLNInFLN_SCX < DesiredFinalFlanOnLP) {
         //     uint256 flanToMint = ((DesiredFinalFlanOnLP -

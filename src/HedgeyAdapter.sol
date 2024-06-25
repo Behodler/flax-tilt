@@ -17,14 +17,13 @@ contract HedgeyAdapter is IStreamAdapter {
         address recipient,
         uint amount,
         uint durationInDays
-    ) external {
+    ) external returns (uint nft) {
         //No need for helper libs because this assumes flax
-        _flax.transferFrom(msg.sender, address(this), amount);
         uint durationInSeconds = durationInDays * 24 * 60 * 60;
         //linear streaming per second
         uint rate = amount / durationInSeconds;
         _flax.approve(address(_hedgey), amount);
-        _hedgey.createPlan(
+        return _hedgey.createPlan(
             recipient,
             address(_flax),
             amount,
