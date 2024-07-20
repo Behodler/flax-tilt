@@ -1,0 +1,34 @@
+{
+  "name": "flax-tilt",
+  "version": "1.0.0",
+  "description": "**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**",
+  "main": "compileABIs.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "compile-abi-file": "node compileABIs.js",
+    "extract-abis": "node extractAbis.js",
+    "anvil-up": "./script/anvilUpAndDeploy.sh ",
+    "anvil-down": "./script/anvilDown.sh",
+    "flatten:HedgeyAdapter": "forge flatten src/HedgeyAdapter.sol | sed '1,3d' > flat/HedgeyAdapter.sol",
+    "flatten:Oracle": "forge flatten src/Oracle.sol | sed '1,3d' > flat/Oracle_flat.sol",
+    "flatten:UniswapHelper" :"forge flatten src/UniswapHelper.sol | sed '1,3d' > flat/UniswapHelper_flat.sol",
+    "flatten": "yarn flatten:HedgeyAdapter && yarn flatten:Oracle && yarn flatten:UniswapHelper",
+    "generate-types": "typechain --target ethers-v5 --out-dir types/ethers './abis/*.json'",
+    "move-artifacts": "cp ABIs.json ../coupon-ui/src/constants/ && cp -R types ../coupon-ui/src/typechain",
+    "build-independent": "rm flat/* && forge build && yarn run extract-abis && yarn compile-abi-file && yarn run generate-types && yarn flatten && yarn move-artifacts",
+    "build": "yarn build-independent && yarn move-artifacts"
+  },
+  "keywords": [],
+  "dependencies": {
+    "@typechain/ethers-v5": "^11.1.2",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "redis": "^4.6.13",
+    "typechain": "^8.3.2"
+  },
+  "author": "",
+  "license": "ISC"
+}

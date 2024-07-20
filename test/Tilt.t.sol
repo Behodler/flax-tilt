@@ -25,6 +25,7 @@ contract Tilt is Test {
     Oracle oracle;
     TokenLockupPlans hedgey;
     HedgeyAdapter hedgeyAdapter;
+    //TODO instantiate and assert
     UniswapHelper priceTilter;
     event flaxPerEth(uint oracleVal, uint average);
 

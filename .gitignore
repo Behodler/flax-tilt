@@ -16,3 +16,4 @@ docs/
 private/
 
 ignore-this*.*
+node_modules/
