@@ -18,7 +18,8 @@ abstract contract LimboOracleLike {
   function consult(
     address pricedToken,
     address referenceToken,
-    uint256 amountIn
+    uint256 amountIn,
+    bool preview
   ) external view virtual returns (uint256 amountOut);
 
   function getLastUpdate (address token1, address token2) public virtual view returns (uint32,uint);

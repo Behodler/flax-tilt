@@ -9,9 +9,7 @@ import {UniswapV2Factory} from "@uniswap/core/UniswapV2Factory.sol";
 import {IUniswapV2Factory} from "@uniswap/core/interfaces/IUniswapV2Factory.sol";
 import {IUniswapV2Pair} from "@uniswap/core/interfaces/IUniswapV2Pair.sol";
 import {Oracle} from "src/Oracle.sol";
-import {TokenLockupPlans} from "@hedgey/lockup/TokenLockupPlans.sol";
-import {HedgeyAdapter} from "src/HedgeyAdapter.sol";
-import {UniswapHelper} from "src/UniswapHelper.sol";
+import {Tilter} from "src/Tilter.sol";
 import {IERC20} from "@oz_tilt/contracts/token/ERC20/IERC20.sol";
 
 error insufficientAllowance(uint expected, uint actual);
@@ -119,7 +117,7 @@ contract DeployContracts is Script {
             address(flax),
             address(hedgey)
         );
-        UniswapHelper priceTilter = new UniswapHelper(address(flax));
+        Tilter priceTilter = new Tilter(address(flax));
 
         IERC20(address(flax)).approve(address(priceTilter), type(uint).max);
 
@@ -150,7 +148,7 @@ contract DeployContracts is Script {
         address multicall2Address = multi.run();
 
         string[7] memory contractNames = [
-            "UniswapHelper",
+            "Tilter",
             "Oracle",
             "ReferencePair",
             "Coupon",

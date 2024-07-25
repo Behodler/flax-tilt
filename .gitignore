@@ -17,3 +17,5 @@ private/
 
 ignore-this*.*
 node_modules/
+
+/test/*.md

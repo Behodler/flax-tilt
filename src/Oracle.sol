@@ -92,16 +92,20 @@ contract Oracle is Ownable {
      *@param tokenIn the token for which the price is required
      *@param tokenOut the token that the priced token is being priced in.
      *@param amountIn the quantity of pricedToken to allow for price impact
+     *@param preview What would the price be if we updated right now? Devs: never use this in contracts. This makes UX less gassy 
      */
     function consult(
         address tokenIn,
         address tokenOut,
-        uint256 amountIn
+        uint256 amountIn,
+        bool preview //will cause a revert if wait period has not been exceeded.
     ) external view validPair(tokenIn, tokenOut) returns (uint256 amountOut) {
         IUniswapV2Pair pair = IUniswapV2Pair(
             factory.getPair(tokenIn, tokenOut)
         );
-        PairMeasurement memory measurement = pairMeasurements[address(pair)];
+        PairMeasurement memory measurement = preview
+            ? peek_update(address(pair))
+            : pairMeasurements[address(pair)];
 
         if (tokenIn == pair.token0()) {
             amountOut = (measurement.price0Average.mul(amountIn)).decode144();
@@ -117,7 +121,9 @@ contract Oracle is Ownable {
         }
     }
 
-    function _update(address _pair) private {
+    function peek_update(
+        address _pair
+    ) private view returns (PairMeasurement memory) {
         (
             uint256 price0Cumulative,
             uint256 price1Cumulative,
@@ -156,6 +162,16 @@ contract Oracle is Ownable {
         measurement.price0CumulativeLast = price0Cumulative;
         measurement.price1CumulativeLast = price1Cumulative;
         measurement.blockTimestampLast = blockTimestamp;
+        return measurement;
+    }
+
+    function _update(address _pair) private {
+        PairMeasurement memory measurement = peek_update(_pair);
+
+        if (measurement.period == 0) {
+            revert AssetNotRegistered(_pair);
+        }
+
         pairMeasurements[_pair] = measurement;
     }
 

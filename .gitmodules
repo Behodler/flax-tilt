@@ -16,6 +16,3 @@
 [submodule "lib/UniswapV2CoreFoundryFriendly"]
 	path = lib/UniswapV2CoreFoundryFriendly
 	url = https://github.com/Behodler/UniswapV2CoreFoundryFriendly
-[submodule "lib/Flax"]
-	path = lib/Flax
-	url = https://github.com/Behodler/Flax
