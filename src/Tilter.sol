@@ -54,6 +54,7 @@ contract Tilter is
             address(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f)
         );
         VARS.flax = flx;
+        _enabled = true;
     }
 
     function setEnabled(bool enabled) public onlyOwner {
@@ -85,6 +86,7 @@ contract Tilter is
         });
 
         IERC20(flx_ref_token).approve(issuer, type(uint).max);
+        VARS.issuer = issuer;
     }
 
     struct PriceTiltVARS {
@@ -115,13 +117,12 @@ contract Tilter is
         uint amount1;
     }
 
-    //Estimates how many LP units would be created and what they'd be worth
-    // in referenceTokens after tilting. Useful for UI estimating bonfire deposit
-    // which leads to estimating flax reward and APY
+    //If preview is true, a simulated oracle update is performed which isn't stored. This allows the UI to know what the values
+    //would be if the oracle updates without spending gas.
     function refValueOfTilt(
         uint ref_amount,
         bool preview // if the oracle hasn't been updated for a while
-    ) public view returns (uint ref_value, uint lpTokens) {
+    ) public view returns (uint flax_new_balance, uint lpTokens) {
         PriceTiltVARS memory priceTilt = getPriceTiltVARS(preview);
         uint flx_amount = (ref_amount * priceTilt.FlaxPerRef_token * 6) /
             (10 * SPOT);
@@ -146,15 +147,14 @@ contract Tilter is
 
         mint_vars.balance0 = IERC20(mint_vars.token0).balanceOf(pair_address);
         mint_vars.balance1 = IERC20(mint_vars.token1).balanceOf(pair_address);
-        uint ref_new_balance = 0;
         if (mint_vars.token0 == VARS.flax) {
             mint_vars.balance0 += flx_amount;
             mint_vars.balance1 += ref_amount;
-            ref_new_balance = mint_vars.balance1;
+            flax_new_balance = mint_vars.balance0;
         } else {
             mint_vars.balance1 += flx_amount;
             mint_vars.balance0 += ref_amount;
-            mint_vars.balance0;
+            flax_new_balance = mint_vars.balance1;
         }
 
         mint_vars.amount0 = mint_vars.balance0 - mint_vars.reserve0;
@@ -164,28 +164,27 @@ contract Tilter is
             (mint_vars.amount0 * totalSupply) / mint_vars.reserve0,
             (mint_vars.amount1 * totalSupply) / mint_vars.reserve1
         );
-        totalSupply += lpTokens;
+    }
 
-        //Whatever the ref balance is, multiply by 2 to get the ref value of the flx amount.
-        //The ether just handles integer precision issues.
-        ref_value = ((2 ether) * ref_new_balance) / totalSupply;
+    function lp_price_in_ref() public view returns (uint) {
+        IUniswapV2Pair pair = IUniswapV2Pair(
+            VARS.factory.getPair(VARS.ref_token, VARS.flax)
+        );
+        uint ref_balance = IERC20(VARS.ref_token).balanceOf(address(pair));
+        return ((2 ether) * ref_balance) / pair.totalSupply();
     }
 
     function issue(
         address inputToken,
         address recipient
-    ) public payable nonReentrant returns (uint) {
+    ) public payable nonReentrant {
         uint amount = msg.value;
         IWETH(VARS.ref_token).deposit{value: msg.value}();
-        return issue(inputToken, amount, recipient);
+        issue(inputToken, amount, recipient);
     }
 
     //same signature for DI
-    function issue(
-        address inputToken,
-        uint amount,
-        address recipient
-    ) public returns (uint) {
+    function issue(address inputToken, uint amount, address recipient) public {
         //SECURITY VALIDATIONS
         if (!_enabled) {
             revert TitlerHasBeenDisabledByOwner();
@@ -219,12 +218,12 @@ contract Tilter is
         //END PRICE TILTING
 
         //DEPOSIT TO BONFIRE
-        return
-            Issuer(VARS.issuer).issue(
-                address(VARS.oracleSet.flx_ref_token),
-                mintedLP,
-                recipient
-            );
+
+        Issuer(VARS.issuer).issue(
+            address(VARS.oracleSet.flx_ref_token),
+            mintedLP,
+            recipient
+        );
         //DEPOSIT TO BONFIRE
     }
 
