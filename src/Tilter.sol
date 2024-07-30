@@ -6,11 +6,11 @@ import {ReentrancyGuard} from "@oz_tilt/contracts/utils/ReentrancyGuard.sol";
 import "@behodler/flax/IIssuer.sol";
 import {ICoupon} from "@behodler/flax/ICoupon.sol";
 import {Issuer} from "@behodler/flax/Issuer.sol";
-
+import "./ITilter.sol";
 import "@uniswap/core/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/core/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/periphery/interfaces/IUniswapV2Router02.sol";
-import "./LimboOracleLike.sol";
+import "./Oracle.sol";
 import "./Errors.sol";
 import "./IWeth.sol";
 import "@uniswap/periphery/libraries/UniswapV2Library.sol";
@@ -20,44 +20,35 @@ import "@uniswap/core/libraries/Math.sol";
 /**@notice In order to re-use audited code, the UniswapHelper is copied from Limbo
  * to function as the price tilting contract for Flax.
  */
-contract Tilter is
-    Ownable,
-    ReentrancyGuard
-    //Explanation: governance is simple ownable
-    /**is Governable, AMMHelper*/
-{
+contract Tilter is Ownable, ReentrancyGuard, ITilter {
     uint256 constant SPOT = 1e10;
     bool _enabled;
 
-    struct OracleSet {
-        IUniswapV2Pair flx_ref_token;
-        LimboOracleLike oracle;
-    }
-
-    struct UniVARS {
-        uint256 minQuoteWaitDuration;
-        IUniswapV2Factory factory;
-        address ref_token;
-        address flax;
-        OracleSet oracleSet;
-        address issuer;
+    struct MintEstimationVariables {
+        address token0;
+        address token1;
+        uint balance0;
+        uint balance1;
+        uint reserve0;
+        uint reserve1;
+        uint amount0;
+        uint amount1;
     }
 
     UniVARS public VARS;
 
     constructor(
-        address flx
+        address flx,
+        address uniRouter
     )
         Ownable(msg.sender) //Governable(limboDAO)
     {
-        VARS.factory = IUniswapV2Factory(
-            address(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f)
-        );
+        VARS.router = IUniswapV2Router02(uniRouter);
         VARS.flax = flx;
         _enabled = true;
     }
 
-    function setEnabled(bool enabled) public onlyOwner {
+    function setEnabled(bool enabled) external onlyOwner {
         _enabled = enabled;
     }
 
@@ -66,11 +57,11 @@ contract Tilter is
         address flx,
         address oracle,
         address issuer
-    ) public onlyOwner {
+    ) external onlyOwner {
         VARS.ref_token = ref_token;
         VARS.flax = flx;
 
-        LimboOracleLike limboOracle = LimboOracleLike(oracle);
+        Oracle limboOracle = Oracle(oracle);
         VARS.factory = limboOracle.factory();
 
         address flx_ref_token = VARS.factory.getPair(flx, ref_token);
@@ -85,47 +76,22 @@ contract Tilter is
             flx_ref_token: IUniswapV2Pair(flx_ref_token)
         });
 
+        //tokens differ in how they approach this situation.
+        IERC20(flx).approve(address(this), type(uint).max);
+
         IERC20(flx_ref_token).approve(issuer, type(uint).max);
         VARS.issuer = issuer;
     }
 
-    struct PriceTiltVARS {
-        uint FlaxPerRef_token;
-    }
-
-    function getPriceTiltVARS(
-        bool preview
-    ) internal view returns (PriceTiltVARS memory tilt) {
-        tilt.FlaxPerRef_token = VARS.oracleSet.oracle.consult(
-            VARS.ref_token,
-            VARS.flax,
-            SPOT,
-            preview
-        );
-    }
-
-    uint public safeFlaxBalance;
-
-    struct MintEstimationVariables {
-        address token0;
-        address token1;
-        uint balance0;
-        uint balance1;
-        uint reserve0;
-        uint reserve1;
-        uint amount0;
-        uint amount1;
-    }
-
-    //If preview is true, a simulated oracle update is performed which isn't stored. This allows the UI to know what the values
-    //would be if the oracle updates without spending gas.
+    //preview allows the caller to simulate a call to update before retrieving the value.
+    //This is useful for clients which wish to
+    //report accurate data to end users without spending gas. Never set preview to true during a transaction.
     function refValueOfTilt(
         uint ref_amount,
-        bool preview // if the oracle hasn't been updated for a while
-    ) public view returns (uint flax_new_balance, uint lpTokens) {
-        PriceTiltVARS memory priceTilt = getPriceTiltVARS(preview);
-        uint flx_amount = (ref_amount * priceTilt.FlaxPerRef_token * 6) /
-            (10 * SPOT);
+        bool preview
+    ) external view returns (uint flax_new_balance, uint lpTokens_created) {
+        uint flaxPerRef = consultFlaxPerRef(preview);
+        uint flx_amount = (ref_amount * flaxPerRef * 6) / (10 * SPOT);
 
         MintEstimationVariables memory mint_vars;
 
@@ -160,65 +126,96 @@ contract Tilter is
         mint_vars.amount0 = mint_vars.balance0 - mint_vars.reserve0;
         mint_vars.amount1 = mint_vars.balance1 - mint_vars.reserve1;
 
-        lpTokens = Math.min(
+        lpTokens_created = Math.min(
             (mint_vars.amount0 * totalSupply) / mint_vars.reserve0,
             (mint_vars.amount1 * totalSupply) / mint_vars.reserve1
         );
     }
 
-    function lp_price_in_ref() public view returns (uint) {
-        IUniswapV2Pair pair = IUniswapV2Pair(
-            VARS.factory.getPair(VARS.ref_token, VARS.flax)
-        );
-        uint ref_balance = IERC20(VARS.ref_token).balanceOf(address(pair));
-        return ((2 ether) * ref_balance) / pair.totalSupply();
-    }
-
     function issue(
         address inputToken,
+        uint amount,
         address recipient
-    ) public payable nonReentrant {
-        uint amount = msg.value;
-        IWETH(VARS.ref_token).deposit{value: msg.value}();
-        issue(inputToken, amount, recipient);
-    }
-
-    //same signature for DI
-    function issue(address inputToken, uint amount, address recipient) public {
-        //SECURITY VALIDATIONS
+    ) external payable nonReentrant {
+        if (inputToken != VARS.ref_token)
+            revert InputTokenMismatch(inputToken, VARS.ref_token);
         if (!_enabled) {
             revert TitlerHasBeenDisabledByOwner();
         }
-        if (inputToken != VARS.ref_token) {
-            revert InputTokenMismatch(inputToken, VARS.ref_token);
+        if (msg.value > 0) {
+            address wethAddress = VARS.router.WETH();
+            require(
+                inputToken == wethAddress,
+                "Sending Eth to non Eth price-tilter"
+            );
+            IWETH(VARS.ref_token).deposit{value: msg.value}();
+        } else {
+            IERC20(inputToken).transferFrom(msg.sender, address(this), amount);
         }
+        _issue(amount, recipient);
+    }
+
+    function consultFlaxPerRef(bool unsafe) internal view returns (uint) {
+        if (unsafe)
+            return
+                VARS.oracleSet.oracle.unsafeConsult(
+                    VARS.ref_token,
+                    VARS.flax,
+                    SPOT
+                );
+        else {
+            return
+                VARS.oracleSet.oracle.safeConsult(
+                    VARS.ref_token,
+                    VARS.flax,
+                    SPOT
+                );
+        }
+    }
+
+    //function renamed from generateFLNQuote
+    function generateFLXQuote() internal returns (bool preview) {
+        OracleSet memory set = VARS.oracleSet;
+        Oracle oracle = set.oracle;
+        UniVARS memory localVARS = VARS;
+
+        (uint32 blockTimeStamp, uint256 period) = oracle.getLastUpdate(
+            localVARS.flax,
+            localVARS.ref_token
+        );
+        if (block.timestamp - blockTimeStamp >= period) {
+            preview = true;
+            set.oracle.update(localVARS.ref_token, localVARS.flax);
+        }
+    }
+
+    function _issue(uint amount, address recipient) private {
+        //SECURITY VALIDATIONS
 
         //UPDATE ORACLE
         generateFLXQuote();
-        PriceTiltVARS memory priceTilting = getPriceTiltVARS(false);
+        uint flaxPerRef = consultFlaxPerRef(false);
         //END ORACLE UPDATE
 
         //TILT PRICE IN FAVOUR OF FLAX
         //tilt by 60%
-        uint flxToMint = (amount * priceTilting.FlaxPerRef_token * 6) /
-            (10 * SPOT);
+        uint flxToMint = (amount * flaxPerRef * 6) / (10 * SPOT);
 
         ICoupon(VARS.flax).mint(
             flxToMint,
             address(VARS.oracleSet.flx_ref_token)
         );
-        IERC20(VARS.ref_token).transferFrom(
-            msg.sender,
+
+        IERC20(VARS.ref_token).transfer(
             address(VARS.oracleSet.flx_ref_token),
             amount
         );
 
-        IUniswapV2Pair(VARS.oracleSet.flx_ref_token).mint(address(this));
+        VARS.oracleSet.flx_ref_token.mint(address(this));
         uint mintedLP = VARS.oracleSet.flx_ref_token.balanceOf(address(this));
-        //END PRICE TILTING
+        // END PRICE TILTING
 
-        //DEPOSIT TO BONFIRE
-
+        // DEPOSIT TO BONFIRE
         Issuer(VARS.issuer).issue(
             address(VARS.oracleSet.flx_ref_token),
             mintedLP,
@@ -227,18 +224,11 @@ contract Tilter is
         //DEPOSIT TO BONFIRE
     }
 
-    //function renamed from generateFLNQuote
-    function generateFLXQuote() internal {
-        OracleSet memory set = VARS.oracleSet;
-        LimboOracleLike oracle = set.oracle;
-        UniVARS memory localVARS = VARS;
+    function WETH() private returns (IWETH) {
+        return IWETH(IUniswapV2Router02(VARS.router).WETH());
+    }
 
-        (uint32 blockTimeStamp, uint256 period) = oracle.getLastUpdate(
-            localVARS.flax,
-            localVARS.ref_token
-        );
-        if (block.timestamp - blockTimeStamp > period) {
-            set.oracle.update(localVARS.ref_token, localVARS.flax);
-        }
+    function factory() private returns (IUniswapV2Factory) {
+        return IUniswapV2Factory(IUniswapV2Router02(VARS.router).factory());
     }
 }

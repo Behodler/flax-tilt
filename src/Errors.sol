@@ -18,3 +18,8 @@ error AllowanceExceeded(uint, uint);
 error InsufficientFlaxForTilting(uint flaxBalance, uint requiredAmount);
 error TitlerHasBeenDisabledByOwner ();
 error InputTokenMismatch(address inputToken, address referenceToken);
+error EthImpliesWeth(address inputToken, address wethAddress);
+error Debug (uint value, string reason);
+error RefTokenTaken(address refToken, address existingTilter);
+error AdoptionRequiresOwnershipTransfer(address existingOwner);
+error TilterNotMapped(address tilter);

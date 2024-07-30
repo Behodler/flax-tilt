@@ -17,7 +17,7 @@ import "@oz_tilt/contracts/access/Ownable.sol";
 contract Oracle is Ownable {
     using FixedPoint for *;
     using FixedPoint for FixedPoint.uq112x112;
-    
+
     IUniswapV2Factory public factory;
     struct PairMeasurement {
         uint256 price0CumulativeLast;
@@ -28,11 +28,7 @@ contract Oracle is Ownable {
         uint256 period;
     }
     mapping(address => PairMeasurement) public pairMeasurements;
-    mapping (address=>bool) updaters; //prevent griefing
 
-    function setUpdater(address updater, bool canUpdate) public onlyOwner {
-        updaters[updater] = canUpdate;
-    }
 
     function getLastUpdate(
         address token0,
@@ -52,7 +48,6 @@ contract Oracle is Ownable {
 
     constructor(address V2factory) Ownable(msg.sender) {
         factory = IUniswapV2Factory(V2factory);
-        updaters[msg.sender] = true;
     }
 
     /**
@@ -90,8 +85,14 @@ contract Oracle is Ownable {
         address token0,
         address token1
     ) public validPair(token0, token1) {
-        require(updaters[msg.sender],"Oracle: only whitelisted users can call this");
         address pair = factory.getPair(token0, token1);
+        _update(pair);
+    }
+
+    /**
+     *@param pair the UniswapV2 pair
+     */
+    function updatePair(address pair) public {
         _update(pair);
     }
 
@@ -99,22 +100,52 @@ contract Oracle is Ownable {
      *@param tokenIn the token for which the price is required
      *@param tokenOut the token that the priced token is being priced in.
      *@param amountIn the quantity of pricedToken to allow for price impact
-     *@param preview for front end. Never set this for true in contract logic.
+     *@notice robust to be used in logic.
      */
-    function consult(
+    function safeConsult(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn
+    ) public view returns (uint) {
+        return _consult(tokenIn, tokenOut, amountIn, false);
+    }
+
+    /**
+     *@param tokenIn the token for which the price is required
+     *@param tokenOut the token that the priced token is being priced in.
+     *@param amountIn the quantity of pricedToken to allow for price impact
+     *@notice only call from front ends for estimation
+     */
+    function unsafeConsult(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn
+    ) public view returns (uint) {
+        return _consult(tokenIn, tokenOut, amountIn, true);
+    }
+
+    /**
+     *@param tokenIn the token for which the price is required
+     *@param tokenOut the token that the priced token is being priced in.
+     *@param amountIn the quantity of pricedToken to allow for price impact
+     *@param tryPreview for front end to allow for estimating the next update.
+     */
+    function _consult(
         address tokenIn,
         address tokenOut,
         uint256 amountIn,
-        bool preview
-    ) external view validPair(tokenIn, tokenOut) returns (uint256 amountOut) {
+        bool tryPreview
+    ) private view validPair(tokenIn, tokenOut) returns (uint256 amountOut) {
         IUniswapV2Pair pair = IUniswapV2Pair(
             factory.getPair(tokenIn, tokenOut)
         );
 
-        (PairMeasurement memory measurement) = _peek_update(
-            address(pair),
-            preview
-        );
+        PairMeasurement memory measurement;
+        if (tryPreview) {
+            measurement = _peek_udpate(address(pair));
+        } else {
+            measurement = pairMeasurements[address(pair)];
+        }
 
         if (tokenIn == pair.token0()) {
             amountOut = (measurement.price0Average.mul(amountIn)).decode144();
@@ -130,58 +161,88 @@ contract Oracle is Ownable {
         }
     }
 
-    function _peek_update(
-        address _pair,
-        bool preview
-    )
-        private
-        view
-        returns (PairMeasurement memory measurement)
-    {
+    function _peek_udpate(
+        address _pair
+    ) private view returns (PairMeasurement memory) {
         (
             uint256 price0Cumulative,
             uint256 price1Cumulative,
             uint32 blockTimestamp
         ) = UniswapV2OracleLibrary.currentCumulativePrices(_pair);
-        measurement = pairMeasurements[_pair];
+        PairMeasurement memory measurement = pairMeasurements[_pair];
+
         if (measurement.period == 0) {
             revert AssetNotRegistered(_pair);
         }
 
-    uint32 timeElapsed;
+        uint32 timeElapsed;
         unchecked {
             timeElapsed = blockTimestamp - measurement.blockTimestampLast; // overflow is desired
         }
-        bool waitPeriodTooSmall = timeElapsed < measurement.period;
-
-        if(waitPeriodTooSmall && !preview){
-             revert WaitPeriodTooSmall(timeElapsed, measurement.period);
+        //if it hasn't been a period, then the last update is good enough for consult
+        if (timeElapsed <= measurement.period) {
+            return measurement;
         }
-    
-            measurement.price0Average = FixedPoint.uq112x112(
-                uint224(
-                    (price0Cumulative - measurement.price0CumulativeLast) /
-                        timeElapsed
-                )
-            );
 
-            measurement.price1Average = FixedPoint.uq112x112(
-                uint224(
-                    (price1Cumulative - measurement.price1CumulativeLast) /
-                        timeElapsed
-                )
-            );
+        measurement.price0Average = FixedPoint.uq112x112(
+            uint224(
+                (price0Cumulative - measurement.price0CumulativeLast) /
+                    timeElapsed
+            )
+        );
 
-            measurement.price0CumulativeLast = price0Cumulative;
-            measurement.price1CumulativeLast = price1Cumulative;
-            measurement.blockTimestampLast = blockTimestamp;
+        measurement.price1Average = FixedPoint.uq112x112(
+            uint224(
+                (price1Cumulative - measurement.price1CumulativeLast) /
+                    timeElapsed
+            )
+        );
+
+        measurement.price0CumulativeLast = price0Cumulative;
+        measurement.price1CumulativeLast = price1Cumulative;
+        measurement.blockTimestampLast = blockTimestamp;
+        return measurement;
     }
 
     function _update(address _pair) private {
-        (PairMeasurement memory measurement) = _peek_update(
-            _pair,
-            false
+        (
+            uint256 price0Cumulative,
+            uint256 price1Cumulative,
+            uint32 blockTimestamp
+        ) = UniswapV2OracleLibrary.currentCumulativePrices(_pair);
+        PairMeasurement memory measurement = pairMeasurements[_pair];
+
+        if (measurement.period == 0) {
+            revert AssetNotRegistered(_pair);
+        }
+
+        uint32 timeElapsed;
+        unchecked {
+            timeElapsed = blockTimestamp - measurement.blockTimestampLast; // overflow is desired
+        }
+
+        // ensure that at least one full period has passed since the last update
+        if (timeElapsed < measurement.period) {
+            revert WaitPeriodTooSmall(timeElapsed, measurement.period);
+        }
+
+        measurement.price0Average = FixedPoint.uq112x112(
+            uint224(
+                (price0Cumulative - measurement.price0CumulativeLast) /
+                    timeElapsed
+            )
         );
+
+        measurement.price1Average = FixedPoint.uq112x112(
+            uint224(
+                (price1Cumulative - measurement.price1CumulativeLast) /
+                    timeElapsed
+            )
+        );
+
+        measurement.price0CumulativeLast = price0Cumulative;
+        measurement.price1CumulativeLast = price1Cumulative;
+        measurement.blockTimestampLast = blockTimestamp;
         pairMeasurements[_pair] = measurement;
     }
 

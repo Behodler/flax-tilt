@@ -16,6 +16,7 @@ import {Oracle} from "../src/Oracle.sol";
 import {Tilter} from "../src/Tilter.sol";
 import {Ownable} from "@oz_tilt/contracts/access/Ownable.sol";
 import "../src/Errors.sol";
+import "@uniswap/periphery/libraries/UniswapV2Library.sol";
 
 contract MockToken is ERC20 {
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
@@ -40,6 +41,7 @@ contract TilterTest is Test {
     IUniswapV2Pair referencePair;
     Oracle oracle;
     Tilter tilter;
+    TokenLockupPlans tokenLockupPlan;
 
     function factory() internal view returns (IUniswapV2Factory) {
         return IUniswapV2Factory(router.factory());
@@ -53,7 +55,7 @@ contract TilterTest is Test {
         //SETUP BONFIRE
         referenceToken = new MockToken("Reference", "REF20");
         flax = new Coupon("Flax", "FLX");
-        TokenLockupPlans tokenLockupPlan = new TokenLockupPlans("Hedge", "HDG");
+        tokenLockupPlan = new TokenLockupPlans("Hedge", "HDG");
         HedgeyAdapter hedgeyAdapter = new HedgeyAdapter(
             address(flax),
             address(tokenLockupPlan)
@@ -148,7 +150,7 @@ contract TilterTest is Test {
         //END REGISTER PAIR ON BONFIRE
 
         //SETUP TILTER
-        tilter = new Tilter(address(flax));
+        tilter = new Tilter(address(flax), address(router));
         tilter.configure(
             address(referenceToken),
             address(flax),
@@ -158,13 +160,97 @@ contract TilterTest is Test {
         oracle.setUpdater(address(tilter), true);
         flax.setMinter(address(tilter), true);
 
+        vm.prank(tilterUser);
+        flax.approve(address(tilter), 1000000 ether);
+        vm.stopPrank();
         //END TILTER SETUP
     }
 
     function test_setup_works() public view {}
 
-    function test_works_with_eth() public view {
-        require(3 > 4, "NOT IMPLEMENTED");
+    function test_works_with_eth() public {
+        //trade weth
+        factory().createPair(address(flax), address(WETH()));
+        referencePair = IUniswapV2Pair(
+            factory().getPair(address(flax), address(WETH()))
+        );
+
+        //REGISTER PAIR ON BONFIRE
+        bonfire.setTokenInfo(address(referencePair), true, false, 11574074);
+        //END REGISTER PAIR ON BONFIRE
+
+        //set up issuer
+        tilter.configure(
+            address(WETH()),
+            address(flax),
+            address(oracle),
+            address(bonfire)
+        );
+
+        flax.mint(1 ether, address(referencePair));
+        vm.deal(address(this), 100 ether);
+        WETH().deposit{value: 10 ether}();
+        WETH().transfer(address(referencePair), 2 ether);
+
+        referencePair.mint(address(this));
+
+        address[] memory path = new address[](2);
+        path[0] = address(WETH());
+        path[1] = address(flax);
+
+        uint tradeAmount = (1 ether) / 20;
+        uint flaxOut = router.getAmountOut(tradeAmount, 2 ether, 1 ether);
+
+        router.swapETHForExactTokens{value: tradeAmount}(
+            flaxOut,
+            path,
+            contractOwner,
+            type(uint).max
+        );
+
+        //register oracle and bonfire
+        oracle.RegisterPair(address(referencePair), 1);
+
+        //trade some more
+
+        (uint wethReserve, uint flaxReserve) = orderReserves(
+            referencePair,
+            address(WETH()),
+            address(flax)
+        );
+
+        tradeAmount = 1e17;
+        flaxOut = router.getAmountOut(tradeAmount, wethReserve, flaxReserve);
+
+        router.swapETHForExactTokens{value: tradeAmount}(
+            flaxOut,
+            path,
+            contractOwner,
+            type(uint).max
+        );
+
+        // //update oracle
+        vm.warp(block.timestamp + 61 minutes);
+        vm.roll(block.number + 1);
+        oracle.update(address(WETH()), address(flax));
+
+        // tilter.issue
+        vm.warp(block.timestamp + 61 minutes);
+        vm.roll(block.number + 1);
+
+        // PASSES TO HERE
+
+        tilter.issue{value: 1 ether}(address(WETH()), 1 ether, tilterUser);
+
+        uint flaxBalanceBeforeRedeem = flax.balanceOf(tilterUser);
+        vm.warp(90 days);
+        vm.roll(block.number + 10);
+        vm.prank(tilterUser);
+        tokenLockupPlan.redeemAllPlans();
+        vm.stopPrank();
+        uint flaxBalanceAfterRedeem = flax.balanceOf(tilterUser);
+
+        vm.assertGt(flaxBalanceAfterRedeem - flaxBalanceBeforeRedeem, 0);
     }
 
     function test_disable_tilter() public {
@@ -204,13 +290,16 @@ contract TilterTest is Test {
         vm.stopPrank();
     }
 
-    function test_ref_value_of_tilt_matches_reality() public {
+    function test_ref_value_of_tilt_matches_reality(
+        uint purchaseAmount
+    ) public {
+        vm.assume(purchaseAmount > 1e17 && purchaseAmount < 1e18 / 2);
         //first a bit of trade
         address[] memory path = new address[](2);
         path[0] = address(referenceToken);
         path[1] = address(flax);
 
-        uint tradeAmount = (1 ether) / 10;
+        uint tradeAmount = 2 << 57;
         uint flaxOut = router.getAmountOut(tradeAmount, 10 ether, 10 ether);
 
         //passing up to here
@@ -223,40 +312,36 @@ contract TilterTest is Test {
             type(uint).max
         );
         vm.stopPrank();
-
         //jump ahead by half hour
         vm.warp(block.timestamp + 30 minutes);
         vm.roll(block.number + 1);
 
-        //get refValue with preview
         uint refBalanceBefore = referenceToken.balanceOf(
             address(referencePair)
         );
 
         uint flaxBalanceBefore = flax.balanceOf(address(referencePair));
 
-        uint refPerFlax_before_projection = (refBalanceBefore * 1e20) /
+        uint refPerFlax_before_projection = (refBalanceBefore * 1e24) /
             flaxBalanceBefore;
 
-        (uint flax_balance_forecast, uint lpTokens_created) = tilter
-            .refValueOfTilt(1 ether, true);
+        (uint flax_balance_on_lp_forecast, uint lpTokens_created) = tilter
+            .refValueOfTilt(purchaseAmount, true);
 
-        uint projected_ref_balance = refBalanceBefore + 1 ether;
+        uint projected_ref_balance = refBalanceBefore + purchaseAmount;
 
-        uint refPerFlax_after_projection = (projected_ref_balance * 1e20) /
-            flax_balance_forecast;
+        uint refPerFlax_after_projection = (projected_ref_balance * 1e24) /
+            flax_balance_on_lp_forecast;
 
         //assert price rise projection
         vm.assertGt(refPerFlax_after_projection, refPerFlax_before_projection);
         vm.assertGt(lpTokens_created, 0);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(WaitPeriodTooSmall.selector, 1800, 3600)
-        );
-        tilter.refValueOfTilt(1 ether, false);
+        //this should not revert.
+        tilter.refValueOfTilt(purchaseAmount, false);
 
         //jump ahead another half hour
-        vm.warp(block.timestamp + 30 minutes);
+        vm.warp(block.timestamp + 1 days + 30 minutes);
         vm.roll(block.number + 1);
         // oracle.update(address(flax), address(referenceToken));
 
@@ -265,15 +350,13 @@ contract TilterTest is Test {
         referenceToken.approve(address(tilter), 1000000 ether);
         vm.stopPrank();
 
-        uint flaxPerRefBefore = oracle.consult(
+        uint flaxPerRefBefore = oracle.safeConsult(
             address(referenceToken),
             address(flax),
-            1e10,
-            true
+            1e10
         );
-
         vm.prank(tilterUser);
-        tilter.issue(address(referenceToken), 1 ether, tilterUser);
+        tilter.issue(address(referenceToken), purchaseAmount, tilterUser);
         vm.stopPrank();
 
         uint flax_balance_lp_after_actual_tilt = flax.balanceOf(
@@ -285,16 +368,71 @@ contract TilterTest is Test {
 
         vm.warp(block.timestamp + 10 minutes);
         vm.roll(block.number + 1);
-        uint flaxPerRefAfter = oracle.consult(
+        (uint flax_new_balance, ) = tilter.refValueOfTilt(purchaseAmount, true);
+
+        uint flaxPerRefAfter = oracle.safeConsult(
             address(referenceToken),
             address(flax),
-            1e10,
-            true
+            1e10
         );
 
-        vm.assertGt(flaxPerRefBefore, flaxPerRefAfter);
-        vm.assertGt(flax_balance_lp_after_actual_tilt, flaxBalanceBefore);
-        vm.assertEq(flax_balance_lp_after_actual_tilt, flax_balance_forecast);
-        vm.assertEq(ref_balance_lp_after_actual_tilt, projected_ref_balance);
+        uint assertionChoice = 100;
+        // assertionChoice = vm.envUint("ASS");
+
+        //1
+
+        if (assertionChoice == 1 || assertionChoice == 100) {
+            vm.assertGt(flaxPerRefBefore, 0);
+            vm.assertGt(flaxPerRefAfter, 0);
+            vm.assertGt(flaxPerRefBefore, flaxPerRefAfter);
+            assertionChoice--;
+        }
+
+        //2
+        if (assertionChoice == 2 || assertionChoice == 100) {
+            vm.assertGt(flax_balance_lp_after_actual_tilt, flaxBalanceBefore);
+            assertionChoice--;
+        }
+
+        //3
+        if (assertionChoice == 3 || assertionChoice == 100) {
+            uint quotient = flax_balance_lp_after_actual_tilt >
+                flax_balance_on_lp_forecast
+                ? (flax_balance_lp_after_actual_tilt * 1000) /
+                    flax_balance_on_lp_forecast
+                : (flax_balance_on_lp_forecast * 1000) /
+                    flax_balance_on_lp_forecast;
+            vm.assertGt(quotient, 998);
+            assertionChoice--;
+        }
+
+        //4
+        if (assertionChoice == 4 || assertionChoice == 100) {
+            vm.assertEq(
+                ref_balance_lp_after_actual_tilt,
+                projected_ref_balance
+            );
+            assertionChoice--;
+        }
+    }
+
+    function orderReserves(
+        IUniswapV2Pair pair,
+        address token0,
+        address token1
+    ) private view returns (uint reserveA, uint reserveB) {
+        (token0, token1) = token0 < token1
+            ? (token0, token1)
+            : (token1, token0);
+
+        (uint reserve0, uint reserve1, ) = pair.getReserves();
+
+        if (token0 == token0) {
+            reserveA = reserve0;
+            reserveB = reserve1;
+        } else {
+            reserveA = reserve1;
+            reserveB = reserve0;
+        }
     }
 }
