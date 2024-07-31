@@ -1,3 +1,5 @@
 {
-  "logs": []
+  "logs": [
+    "{\"Coupon\":\"0x71c95911e9a5d330f4d621842ec243ee1343292e\", \"Issuer\":\"0x0d4ff719551e23185aeb16ffbf2abebb90635942\", \"Multicall3\":\"0x8464135c8f25da09e49bc8782676a84730c318bc\", \"HedgeyAdapter\":\"0x5c7c905b505f0cf40ab6600d05e677f717916f6b\", \"TilterFactory\":\"0x7290f72b5c67052dde8e6e179f7803c493e90d3f\", \"EthTilter\":\"0x0200444768937873b2525336092278acf0d917a1\", \"msgsender\":\"0x70997970c51812dc3a010c7d01b50e0d17dc79c8\", \"Inputs\":[\"0xbcf26943c0197d2ee0e5d05c716be60cc2761508\", \"0x59f2f1fcfe2474fd5f0b9ba1e73ca90b143eb8d0\", \"0x0b48af34f4c854f5ae1a3d587da471fea45bad52\", \"0x90118d110b07abb82ba8980d1c5cc96eea810d2c\"]}"
+  ]
 }

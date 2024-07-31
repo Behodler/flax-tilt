@@ -16,7 +16,7 @@
     "flatten:Oracle": "forge flatten src/Oracle.sol | sed '1,3d' > flat/Oracle_flat.sol",
     "flatten:Tilter" :"forge flatten src/Tilter.sol | sed '1,3d' > flat/Tilter_flat.sol",
     "flatten:TilterFactory":"forge flatten src/TilterFactory.sol | sed '1,3d' > flat/Tilter_flat.sol",
-    "flatten": "yarn flatten:HedgeyAdapter && yarn flatten:Oracle && yarn flatten:Tilter && flatten:TilterFactory",
+    "flatten": "yarn flatten:HedgeyAdapter && yarn flatten:Oracle && yarn flatten:Tilter && yarn flatten:TilterFactory",
     "generate-types": "typechain --target ethers-v5 --out-dir types/ethers './abis/*.json'",
     "move-artifacts": "cp ABIs.json ../coupon-ui/src/constants/ && cp -R types ../coupon-ui/src/typechain",
     "build-independent": "rm flat/* && forge build && yarn run extract-abis && yarn compile-abi-file && yarn run generate-types && yarn flatten && yarn move-artifacts",

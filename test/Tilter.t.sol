@@ -157,7 +157,6 @@ contract TilterTest is Test {
             address(oracle),
             address(bonfire)
         );
-        oracle.setUpdater(address(tilter), true);
         flax.setMinter(address(tilter), true);
 
         vm.prank(tilterUser);

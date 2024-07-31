@@ -1,0 +1,41 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "flax",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "hedgey",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "lock",
+    "inputs": [
+      {
+        "name": "recipient",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "durationInDays",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  }
+]
