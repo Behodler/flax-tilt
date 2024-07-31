@@ -55,6 +55,7 @@ export { Script__factory } from "./Script__factory";
 export { StdAssertions__factory } from "./StdAssertions__factory";
 export { StdInvariant__factory } from "./StdInvariant__factory";
 export { Test__factory } from "./Test__factory";
+export { TestnetFaucet__factory } from "./TestnetFaucet__factory";
 export { Tilt__factory } from "./Tilt__factory";
 export { Tilter__factory } from "./Tilter__factory";
 export { TilterFactory__factory } from "./TilterFactory__factory";
