@@ -113,7 +113,7 @@ contract TilterTest is Test {
         vm.stopPrank();
 
         oracle = new Oracle(address(factory()));
-        oracle.RegisterPair(address(referencePair), 1);
+        oracle.RegisterPair(address(referencePair), 1 hours);
 
         uint flaxReserve = flax.balanceOf(address(referencePair));
         uint referenceReserve = referenceToken.balanceOf(
@@ -208,7 +208,7 @@ contract TilterTest is Test {
         );
 
         //register oracle and bonfire
-        oracle.RegisterPair(address(referencePair), 1);
+        oracle.RegisterPair(address(referencePair), 1 hours);
 
         //trade some more
 

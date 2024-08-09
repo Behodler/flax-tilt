@@ -11,8 +11,8 @@ echo "running shutdown..."
 # Stop any existing Redis instances gracefully
 redis-cli shutdown
 
-echo "sleeping for 5 seconds to ensure proper shutdown"
-sleep 5  
+echo "sleeping for 2 seconds to ensure proper shutdown"
+sleep 2  
 
 # Check if Redis has freed the default port
 if ! lsof -i :6379; then
@@ -57,8 +57,26 @@ sleep 2
 # forge script ./DeployContracts.s.sol --tc DeployContracts --broadcast --rpc-url=http://localhost:8545 --json
 forge script ./DeployContracts.s.sol --tc DeployContracts --broadcast --rpc-url=http://localhost:8545 --json --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d | grep '^{.*}$' | jq 'del(.gas_used, .returns)' > ./output/addresses.json
 
-# # Step 3: Run a Node.js script to read addresses.json and update Redis
-# echo "executing node script"
+
+ORACLE_ADDRESS=$(node set_uni_env.js)
+export UNIORACLE=$ORACLE_ADDRESS
+echo $ORACLE_ADDRESS
+
+WETH_ADDRESS=$(node set_weth_env.js)
+export WETH=$WETH_ADDRESS
+echo $WETH_ADDRESS
+
+FLAX_ADDRESS=$(node set_flax_env.js)
+export FLAX=$FLAX_ADDRESS
+echo $FLAX_ADDRESS
+
+echo "sleeping for 31 seconds to allow oracle to update"
+sleep 31
+
+forge script ./UpdateOracles.s.sol --tc UpdateOracles --broadcast --rpc-url=http://localhost:8545 --json --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d 
+
+# Step 3: Run a Node.js script to read addresses.json and update Redis
+echo "executing node script"
 node updateRedis.js
 # sleep 5
 node expressServer

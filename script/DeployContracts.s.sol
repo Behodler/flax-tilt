@@ -125,7 +125,7 @@ contract DeployContracts is Script {
 
         //CREATE ORACLE
         Oracle oracle = new Oracle(address(factory()));
-        oracle.RegisterPair(address(flx_weth_pair), 1);
+        oracle.RegisterPair(address(flx_weth_pair), 30);
 
         //ISSUER REGISTER PAIR
         issuer.setTokenInfo(address(flx_weth_pair), true, false, 11574074);
@@ -138,9 +138,22 @@ contract DeployContracts is Script {
             address(issuer)
         );
         tilterFactory.deploy(address(WETH()));
-        address ethTilter = tilterFactory.getEthTilter();
+        address ethTilterAddress = tilterFactory.getEthTilter();
 
+        vm.warp(block.timestamp + 900);
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 900);
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 900);
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 901);
+        vm.roll(block.number + 1);
 
+        flax.setMinter(ethTilterAddress, true);
+        Tilter ethTilter = Tilter(ethTilterAddress);
+       // oracle.update(address(WETH()), address(flax));
+       
+        // (uint flax_minted, uint lp) = ethTilter.refValueOfTilt(1 ether, true);
         vm.stopBroadcast();
         // Creating a JSON array of input token addresses
         string memory inputs = string(
@@ -153,6 +166,8 @@ contract DeployContracts is Script {
                 ),
                 '", "',
                 addressToString.toAsciiString(address(SCX)),
+                '", "',
+                addressToString.toAsciiString(address(WETH())),
                 '", "',
                 addressToString.toAsciiString(address(PyroSCX_EYE)),
                 '"]'
@@ -170,10 +185,16 @@ contract DeployContracts is Script {
                 addressToString.toAsciiString(address(multicall3)),
                 '", "HedgeyAdapter":"',
                 addressToString.toAsciiString(address(hedgeyAdapter)),
-                  '", "TilterFactory":"',
+                '", "UniswapV2Router":"',
+                addressToString.toAsciiString(address(router)),
+                '", "TilterFactory":"',
                 addressToString.toAsciiString(address(tilterFactory)),
-                  '", "EthTilter":"',
-                addressToString.toAsciiString(address(ethTilter)),
+                '", "Oracle":"',
+                addressToString.toAsciiString(address(oracle)),
+                '", "Weth":"',
+                addressToString.toAsciiString(address(WETH())),
+                '", "EthTilter":"',
+                addressToString.toAsciiString(address(ethTilterAddress)),
                 '", "msgsender":"',
                 addressToString.toAsciiString(msg.sender),
                 '", "Inputs":',

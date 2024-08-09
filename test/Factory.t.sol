@@ -89,7 +89,7 @@ contract Factory is Test {
         IUniswapV2Pair(referencePair).mint(address(this));
 
         //ORACLE REGISTER REFERENCE PAIR
-        oracle.RegisterPair(referencePair, 1);
+        oracle.RegisterPair(referencePair, 1 hours);
 
         address existingTilter = tilterFactory.tiltersByRef(referenceToken);
         vm.assertEq(existingTilter, address(0));
@@ -143,7 +143,7 @@ contract Factory is Test {
         IUniswapV2Pair(referencePair).mint(address(this));
 
         //ORACLE REGISTER REFERENCE PAIR
-        oracle.RegisterPair(referencePair, 1);
+        oracle.RegisterPair(referencePair, 1 hours);
 
         address existingTilter = tilterFactory.tiltersByRef(referenceToken);
         vm.assertEq(existingTilter, address(0));
@@ -162,7 +162,7 @@ contract Factory is Test {
         newFLX.mint(10 ether, newRefPair);
         MockToken(referenceToken).mint(newRefPair, 10 ether);
         IUniswapV2Pair(newRefPair).mint(address(this));
-        newOracle.RegisterPair(newRefPair, 1);
+        newOracle.RegisterPair(newRefPair, 1 hours);
         Issuer newIssuer = new Issuer(address(newFLX), address(stream));
         tilterFactory.configure(
             newTilter,
@@ -195,7 +195,7 @@ contract Factory is Test {
         IUniswapV2Pair(referencePair).mint(address(this));
 
         //ORACLE REGISTER REFERENCE PAIR
-        oracle.RegisterPair(referencePair, 1);
+        oracle.RegisterPair(referencePair, 1 hours);
 
         address existingTilter = tilterFactory.tiltersByRef(referenceToken);
         vm.assertEq(existingTilter, address(0));
