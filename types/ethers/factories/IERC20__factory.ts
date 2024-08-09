@@ -41,7 +41,7 @@ const _abi = [
         internalType: "address",
       },
       {
-        name: "value",
+        name: "amount",
         type: "uint256",
         internalType: "uint256",
       },
@@ -97,7 +97,7 @@ const _abi = [
         internalType: "address",
       },
       {
-        name: "value",
+        name: "amount",
         type: "uint256",
         internalType: "uint256",
       },
@@ -126,7 +126,7 @@ const _abi = [
         internalType: "address",
       },
       {
-        name: "value",
+        name: "amount",
         type: "uint256",
         internalType: "uint256",
       },

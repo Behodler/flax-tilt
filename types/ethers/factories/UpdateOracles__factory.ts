@@ -4,19 +4,13 @@
 
 import { Contract, Signer, utils } from "ethers";
 import type { Provider } from "@ethersproject/providers";
-import type { IERC165, IERC165Interface } from "../IERC165";
+import type { UpdateOracles, UpdateOraclesInterface } from "../UpdateOracles";
 
 const _abi = [
   {
     type: "function",
-    name: "supportsInterface",
-    inputs: [
-      {
-        name: "interfaceId",
-        type: "bytes4",
-        internalType: "bytes4",
-      },
-    ],
+    name: "IS_SCRIPT",
+    inputs: [],
     outputs: [
       {
         name: "",
@@ -26,17 +20,24 @@ const _abi = [
     ],
     stateMutability: "view",
   },
+  {
+    type: "function",
+    name: "run",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
 ] as const;
 
-export class IERC165__factory {
+export class UpdateOracles__factory {
   static readonly abi = _abi;
-  static createInterface(): IERC165Interface {
-    return new utils.Interface(_abi) as IERC165Interface;
+  static createInterface(): UpdateOraclesInterface {
+    return new utils.Interface(_abi) as UpdateOraclesInterface;
   }
   static connect(
     address: string,
     signerOrProvider: Signer | Provider
-  ): IERC165 {
-    return new Contract(address, _abi, signerOrProvider) as IERC165;
+  ): UpdateOracles {
+    return new Contract(address, _abi, signerOrProvider) as UpdateOracles;
   }
 }

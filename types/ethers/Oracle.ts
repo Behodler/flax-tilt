@@ -46,6 +46,7 @@ export interface OracleInterface extends utils.Interface {
     "unsafeConsult(address,address,uint256)": FunctionFragment;
     "update(address,address)": FunctionFragment;
     "updatePair(address)": FunctionFragment;
+    "updatePeriod(address,address,uint256)": FunctionFragment;
   };
 
   getFunction(
@@ -62,6 +63,7 @@ export interface OracleInterface extends utils.Interface {
       | "unsafeConsult"
       | "update"
       | "updatePair"
+      | "updatePeriod"
   ): FunctionFragment;
 
   encodeFunctionData(
@@ -103,6 +105,10 @@ export interface OracleInterface extends utils.Interface {
     values: [string, string]
   ): string;
   encodeFunctionData(functionFragment: "updatePair", values: [string]): string;
+  encodeFunctionData(
+    functionFragment: "updatePeriod",
+    values: [string, string, BigNumberish]
+  ): string;
 
   decodeFunctionResult(
     functionFragment: "RegisterPair",
@@ -137,6 +143,10 @@ export interface OracleInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "update", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "updatePair", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "updatePeriod",
+    data: BytesLike
+  ): Result;
 
   events: {
     "OwnershipTransferred(address,address)": EventFragment;
@@ -260,6 +270,13 @@ export interface Oracle extends BaseContract {
       pair: string,
       overrides?: Overrides & { from?: string }
     ): Promise<ContractTransaction>;
+
+    updatePeriod(
+      token0: string,
+      token1: string,
+      period: BigNumberish,
+      overrides?: Overrides & { from?: string }
+    ): Promise<ContractTransaction>;
   };
 
   RegisterPair(
@@ -339,6 +356,13 @@ export interface Oracle extends BaseContract {
     overrides?: Overrides & { from?: string }
   ): Promise<ContractTransaction>;
 
+  updatePeriod(
+    token0: string,
+    token1: string,
+    period: BigNumberish,
+    overrides?: Overrides & { from?: string }
+  ): Promise<ContractTransaction>;
+
   callStatic: {
     RegisterPair(
       pairAddress: string,
@@ -411,6 +435,13 @@ export interface Oracle extends BaseContract {
     ): Promise<void>;
 
     updatePair(pair: string, overrides?: CallOverrides): Promise<void>;
+
+    updatePeriod(
+      token0: string,
+      token1: string,
+      period: BigNumberish,
+      overrides?: CallOverrides
+    ): Promise<void>;
   };
 
   filters: {
@@ -485,6 +516,13 @@ export interface Oracle extends BaseContract {
       pair: string,
       overrides?: Overrides & { from?: string }
     ): Promise<BigNumber>;
+
+    updatePeriod(
+      token0: string,
+      token1: string,
+      period: BigNumberish,
+      overrides?: Overrides & { from?: string }
+    ): Promise<BigNumber>;
   };
 
   populateTransaction: {
@@ -546,6 +584,13 @@ export interface Oracle extends BaseContract {
 
     updatePair(
       pair: string,
+      overrides?: Overrides & { from?: string }
+    ): Promise<PopulatedTransaction>;
+
+    updatePeriod(
+      token0: string,
+      token1: string,
+      period: BigNumberish,
       overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
   };

@@ -3934,7 +3934,7 @@
       "name": "supportsInterface",
       "inputs": [
         {
-          "name": "interfaceID",
+          "name": "interfaceId",
           "type": "bytes4",
           "internalType": "bytes4"
         }
@@ -3984,7 +3984,7 @@
           "internalType": "address"
         },
         {
-          "name": "value",
+          "name": "amount",
           "type": "uint256",
           "internalType": "uint256"
         }
@@ -4040,7 +4040,7 @@
           "internalType": "address"
         },
         {
-          "name": "value",
+          "name": "amount",
           "type": "uint256",
           "internalType": "uint256"
         }
@@ -4069,7 +4069,7 @@
           "internalType": "address"
         },
         {
-          "name": "value",
+          "name": "amount",
           "type": "uint256",
           "internalType": "uint256"
         }
@@ -13356,6 +13356,29 @@
       "stateMutability": "nonpayable"
     },
     {
+      "type": "function",
+      "name": "updatePeriod",
+      "inputs": [
+        {
+          "name": "token0",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "token1",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "period",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
       "type": "event",
       "name": "OwnershipTransferred",
       "inputs": [
@@ -21160,6 +21183,28 @@
           "internalType": "uint256[]"
         }
       ],
+      "stateMutability": "nonpayable"
+    }
+  ],
+  "UpdateOracles": [
+    {
+      "type": "function",
+      "name": "IS_SCRIPT",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "run",
+      "inputs": [],
+      "outputs": [],
       "stateMutability": "nonpayable"
     }
   ],

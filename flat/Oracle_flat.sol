@@ -649,8 +649,17 @@ contract Oracle is Ownable {
             blockTimestampLast: blockTimestampLast,
             price0Average: FixedPoint.uq112x112(0),
             price1Average: FixedPoint.uq112x112(0),
-            period: period * (1 hours)
+            period: period
         });
+    }
+
+    function updatePeriod(
+        address token0,
+        address token1,
+        uint period
+    ) public onlyOwner {
+        address pair = factory.getPair(token0, token1);
+        pairMeasurements[pair].period = period;
     }
 
     /**
@@ -796,7 +805,7 @@ contract Oracle is Ownable {
             timeElapsed = blockTimestamp - measurement.blockTimestampLast; // overflow is desired
         }
 
-        // ensure that at least one full period has passed since the last update
+        //  ensure that at least one full period has passed since the last update
         if (timeElapsed < measurement.period) {
             revert WaitPeriodTooSmall(timeElapsed, measurement.period);
         }

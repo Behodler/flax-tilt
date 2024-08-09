@@ -6,6 +6,8 @@ import type {
   BigNumber,
   BytesLike,
   CallOverrides,
+  ContractTransaction,
+  Overrides,
   PopulatedTransaction,
   Signer,
   utils,
@@ -19,32 +21,29 @@ import type {
   OnEvent,
 } from "./common";
 
-export interface IERC165Interface extends utils.Interface {
+export interface UpdateOraclesInterface extends utils.Interface {
   functions: {
-    "supportsInterface(bytes4)": FunctionFragment;
+    "IS_SCRIPT()": FunctionFragment;
+    "run()": FunctionFragment;
   };
 
-  getFunction(nameOrSignatureOrTopic: "supportsInterface"): FunctionFragment;
+  getFunction(nameOrSignatureOrTopic: "IS_SCRIPT" | "run"): FunctionFragment;
 
-  encodeFunctionData(
-    functionFragment: "supportsInterface",
-    values: [BytesLike]
-  ): string;
+  encodeFunctionData(functionFragment: "IS_SCRIPT", values?: undefined): string;
+  encodeFunctionData(functionFragment: "run", values?: undefined): string;
 
-  decodeFunctionResult(
-    functionFragment: "supportsInterface",
-    data: BytesLike
-  ): Result;
+  decodeFunctionResult(functionFragment: "IS_SCRIPT", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "run", data: BytesLike): Result;
 
   events: {};
 }
 
-export interface IERC165 extends BaseContract {
+export interface UpdateOracles extends BaseContract {
   connect(signerOrProvider: Signer | Provider | string): this;
   attach(addressOrName: string): this;
   deployed(): Promise<this>;
 
-  interface: IERC165Interface;
+  interface: UpdateOraclesInterface;
 
   queryFilter<TEvent extends TypedEvent>(
     event: TypedEventFilter<TEvent>,
@@ -66,37 +65,36 @@ export interface IERC165 extends BaseContract {
   removeListener: OnEvent<this>;
 
   functions: {
-    supportsInterface(
-      interfaceId: BytesLike,
-      overrides?: CallOverrides
-    ): Promise<[boolean]>;
+    IS_SCRIPT(overrides?: CallOverrides): Promise<[boolean]>;
+
+    run(
+      overrides?: Overrides & { from?: string }
+    ): Promise<ContractTransaction>;
   };
 
-  supportsInterface(
-    interfaceId: BytesLike,
-    overrides?: CallOverrides
-  ): Promise<boolean>;
+  IS_SCRIPT(overrides?: CallOverrides): Promise<boolean>;
+
+  run(overrides?: Overrides & { from?: string }): Promise<ContractTransaction>;
 
   callStatic: {
-    supportsInterface(
-      interfaceId: BytesLike,
-      overrides?: CallOverrides
-    ): Promise<boolean>;
+    IS_SCRIPT(overrides?: CallOverrides): Promise<boolean>;
+
+    run(overrides?: CallOverrides): Promise<void>;
   };
 
   filters: {};
 
   estimateGas: {
-    supportsInterface(
-      interfaceId: BytesLike,
-      overrides?: CallOverrides
-    ): Promise<BigNumber>;
+    IS_SCRIPT(overrides?: CallOverrides): Promise<BigNumber>;
+
+    run(overrides?: Overrides & { from?: string }): Promise<BigNumber>;
   };
 
   populateTransaction: {
-    supportsInterface(
-      interfaceId: BytesLike,
-      overrides?: CallOverrides
+    IS_SCRIPT(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
+    run(
+      overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
   };
 }

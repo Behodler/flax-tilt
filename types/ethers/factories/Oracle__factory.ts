@@ -288,6 +288,29 @@ const _abi = [
     stateMutability: "nonpayable",
   },
   {
+    type: "function",
+    name: "updatePeriod",
+    inputs: [
+      {
+        name: "token0",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "token1",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "period",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
     type: "event",
     name: "OwnershipTransferred",
     inputs: [

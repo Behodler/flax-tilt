@@ -67,6 +67,7 @@ export { UniswapV2ERC20__factory } from "./UniswapV2ERC20__factory";
 export { UniswapV2Factory__factory } from "./UniswapV2Factory__factory";
 export { UniswapV2Pair__factory } from "./UniswapV2Pair__factory";
 export { UniswapV2Router02__factory } from "./UniswapV2Router02__factory";
+export { UpdateOracles__factory } from "./UpdateOracles__factory";
 export { Vm__factory } from "./Vm__factory";
 export { VmSafe__factory } from "./VmSafe__factory";
 export { WETH9__factory } from "./WETH9__factory";
