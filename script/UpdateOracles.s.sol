@@ -52,12 +52,16 @@ contract UpdateOracles is Script {
         address wethAddress = vm.envAddress("WETH");
 
         address flaxAddress = vm.envAddress("FLAX");
+        address tilterAddress = vm.envAddress("TILTER");
 
         Oracle oracle = Oracle(oracleAddress);
 
         oracle.update(wethAddress, flaxAddress);
         oracle.updatePeriod(wethAddress, flaxAddress, 1 hours);
+        Tilter ethTilter = Tilter(tilterAddress);
 
+        //if this fails, previous oracle stuff was done incorrectly
+        (uint flax_minted, uint lp) = ethTilter.refValueOfTilt(1 ether, true);
         vm.stopBroadcast();
     }
 }

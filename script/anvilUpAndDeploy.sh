@@ -35,7 +35,7 @@ fi
 LOG_FILE="../anvil.log"
 
 # Start anvil in the background and redirect all output to log file
-anvil  --block-time 2 --port 8545 --accounts 10 > "$LOG_FILE" 2>&1 & 
+anvil  --block-time 5 --port 8545 --accounts 10 > "$LOG_FILE" 2>&1 & 
 
 # # Get the PID of the anvil process
 ANVIL_PID=$!
@@ -69,6 +69,10 @@ echo $WETH_ADDRESS
 FLAX_ADDRESS=$(node set_flax_env.js)
 export FLAX=$FLAX_ADDRESS
 echo $FLAX_ADDRESS
+
+TILTER_ADDRESS=$(node set_tilter_env.js)
+export TILTER=$TILTER_ADDRESS
+echo $TILTER_ADDRESS
 
 echo "sleeping for 31 seconds to allow oracle to update"
 sleep 31
