@@ -35,9 +35,11 @@ export interface IssuerInterface extends utils.Interface {
     "owner()": FunctionFragment;
     "renounceOwnership()": FunctionFragment;
     "setCouponContract(address)": FunctionFragment;
+    "setDependencies(address,address)": FunctionFragment;
     "setLimits(uint256,uint256,uint256,uint256)": FunctionFragment;
     "setTokenInfo(address,bool,bool,uint256)": FunctionFragment;
     "setTokensInfo(address[],bool[],bool[],uint256[])": FunctionFragment;
+    "stream()": FunctionFragment;
     "transferOwnership(address)": FunctionFragment;
     "whitelist(address)": FunctionFragment;
   };
@@ -51,9 +53,11 @@ export interface IssuerInterface extends utils.Interface {
       | "owner"
       | "renounceOwnership"
       | "setCouponContract"
+      | "setDependencies"
       | "setLimits"
       | "setTokenInfo"
       | "setTokensInfo"
+      | "stream"
       | "transferOwnership"
       | "whitelist"
   ): FunctionFragment;
@@ -84,6 +88,10 @@ export interface IssuerInterface extends utils.Interface {
     values: [string]
   ): string;
   encodeFunctionData(
+    functionFragment: "setDependencies",
+    values: [string, string]
+  ): string;
+  encodeFunctionData(
     functionFragment: "setLimits",
     values: [BigNumberish, BigNumberish, BigNumberish, BigNumberish]
   ): string;
@@ -95,6 +103,7 @@ export interface IssuerInterface extends utils.Interface {
     functionFragment: "setTokensInfo",
     values: [string[], boolean[], boolean[], BigNumberish[]]
   ): string;
+  encodeFunctionData(functionFragment: "stream", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [string]
@@ -123,6 +132,10 @@ export interface IssuerInterface extends utils.Interface {
     functionFragment: "setCouponContract",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "setDependencies",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "setLimits", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "setTokenInfo",
@@ -132,6 +145,7 @@ export interface IssuerInterface extends utils.Interface {
     functionFragment: "setTokensInfo",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "stream", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "transferOwnership",
     data: BytesLike
@@ -265,6 +279,12 @@ export interface Issuer extends BaseContract {
       overrides?: Overrides & { from?: string }
     ): Promise<ContractTransaction>;
 
+    setDependencies(
+      couponAddress: string,
+      hedgeyAdapterAddress: string,
+      overrides?: Overrides & { from?: string }
+    ): Promise<ContractTransaction>;
+
     setLimits(
       threshold_size: BigNumberish,
       days_multiple: BigNumberish,
@@ -288,6 +308,8 @@ export interface Issuer extends BaseContract {
       startingRate: BigNumberish[],
       overrides?: Overrides & { from?: string }
     ): Promise<ContractTransaction>;
+
+    stream(overrides?: CallOverrides): Promise<[string]>;
 
     transferOwnership(
       newOwner: string,
@@ -339,6 +361,12 @@ export interface Issuer extends BaseContract {
     overrides?: Overrides & { from?: string }
   ): Promise<ContractTransaction>;
 
+  setDependencies(
+    couponAddress: string,
+    hedgeyAdapterAddress: string,
+    overrides?: Overrides & { from?: string }
+  ): Promise<ContractTransaction>;
+
   setLimits(
     threshold_size: BigNumberish,
     days_multiple: BigNumberish,
@@ -362,6 +390,8 @@ export interface Issuer extends BaseContract {
     startingRate: BigNumberish[],
     overrides?: Overrides & { from?: string }
   ): Promise<ContractTransaction>;
+
+  stream(overrides?: CallOverrides): Promise<string>;
 
   transferOwnership(
     newOwner: string,
@@ -411,6 +441,12 @@ export interface Issuer extends BaseContract {
       overrides?: CallOverrides
     ): Promise<void>;
 
+    setDependencies(
+      couponAddress: string,
+      hedgeyAdapterAddress: string,
+      overrides?: CallOverrides
+    ): Promise<void>;
+
     setLimits(
       threshold_size: BigNumberish,
       days_multiple: BigNumberish,
@@ -434,6 +470,8 @@ export interface Issuer extends BaseContract {
       startingRate: BigNumberish[],
       overrides?: CallOverrides
     ): Promise<void>;
+
+    stream(overrides?: CallOverrides): Promise<string>;
 
     transferOwnership(
       newOwner: string,
@@ -526,6 +564,12 @@ export interface Issuer extends BaseContract {
       overrides?: Overrides & { from?: string }
     ): Promise<BigNumber>;
 
+    setDependencies(
+      couponAddress: string,
+      hedgeyAdapterAddress: string,
+      overrides?: Overrides & { from?: string }
+    ): Promise<BigNumber>;
+
     setLimits(
       threshold_size: BigNumberish,
       days_multiple: BigNumberish,
@@ -549,6 +593,8 @@ export interface Issuer extends BaseContract {
       startingRate: BigNumberish[],
       overrides?: Overrides & { from?: string }
     ): Promise<BigNumber>;
+
+    stream(overrides?: CallOverrides): Promise<BigNumber>;
 
     transferOwnership(
       newOwner: string,
@@ -586,6 +632,12 @@ export interface Issuer extends BaseContract {
       overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
 
+    setDependencies(
+      couponAddress: string,
+      hedgeyAdapterAddress: string,
+      overrides?: Overrides & { from?: string }
+    ): Promise<PopulatedTransaction>;
+
     setLimits(
       threshold_size: BigNumberish,
       days_multiple: BigNumberish,
@@ -609,6 +661,8 @@ export interface Issuer extends BaseContract {
       startingRate: BigNumberish[],
       overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
+
+    stream(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     transferOwnership(
       newOwner: string,

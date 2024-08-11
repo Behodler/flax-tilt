@@ -142,6 +142,24 @@ const _abi = [
   },
   {
     type: "function",
+    name: "setDependencies",
+    inputs: [
+      {
+        name: "couponAddress",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "hedgeyAdapterAddress",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "setLimits",
     inputs: [
       {
@@ -223,6 +241,19 @@ const _abi = [
     ],
     outputs: [],
     stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "stream",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract HedgeyAdapter",
+      },
+    ],
+    stateMutability: "view",
   },
   {
     type: "function",
