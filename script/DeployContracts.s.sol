@@ -61,6 +61,15 @@ contract DeployContracts is Script {
         PyroSCX_EYE.mint(uint((323220 ether) / uint(2200)), msg.sender);
         // Deploy Issuer with the address of Coupon
 
+        Coupon shiba = new Coupon("Shiba", "Inu");
+        Coupon uniGov = new Coupon("UNI", "UNI");
+
+        shiba.setMinter(msg.sender, true);
+        uniGov.setMinter(msg.sender, true);
+
+        shiba.mint(2000 ether, msg.sender);
+        uniGov.mint(3000 ether, msg.sender);
+
         TokenLockupPlans tokenLockupPlan = new TokenLockupPlans("Hedge", "HDG");
         HedgeyAdapter hedgeyAdapter = new HedgeyAdapter(
             address(flax),
@@ -92,43 +101,41 @@ contract DeployContracts is Script {
             address(new WETH9())
         );
 
-        //create FLX/ETH pair
-        factory().createPair(address(flax), address(WETH()));
-        IUniswapV2Pair flx_weth_pair = IUniswapV2Pair(
-            factory().getPair(address(flax), address(WETH()))
-        );
-
-        flax.mint(10 ether, address(flx_weth_pair));
+        //create pairs
         WETH().deposit{value: 1 ether}();
-        WETH().transfer(address(flx_weth_pair), 1 ether);
-        flx_weth_pair.mint(msg.sender);
-
-        //trade a little
-        flax.mint(10 ether, msg.sender);
-        flax.approve(address(flx_weth_pair), 100 ether);
-
-        address[] memory path = new address[](2);
-        path[0] = address(flax);
-        path[1] = address(WETH());
-
-        uint tradeAmount = (1 ether) / 20;
-
-        uint wethOut = router.getAmountOut(tradeAmount, 10 ether, 1 ether);
-        flax.approve(address(router), type(uint).max);
-        router.swapExactTokensForETH(
-            tradeAmount,
-            wethOut,
-            path,
-            msg.sender,
-            type(uint).max
+        IUniswapV2Pair flx_weth_pair = createFlaxPair(
+            address(flax),
+            address(WETH())
         );
+
+        // TODO: Break into multiple scripts :(
+        IUniswapV2Pair flx_shib_pair = createFlaxPair(
+            address(flax),
+            address(shiba)
+        );
+
+        IUniswapV2Pair flx_uni_pair = createFlaxPair(
+            address(flax),
+            address(uniGov)
+        );
+
+        // trade a little
+        sellFlax(address(flax), address(WETH()), true);
+        sellFlax(address(flax), address(shiba), false);
+        sellFlax(address(flax), address(uniGov), false);
 
         //CREATE ORACLE
         Oracle oracle = new Oracle(address(factory()));
+
+        //ORACLE REGISTER PAIR
         oracle.RegisterPair(address(flx_weth_pair), 30);
+        oracle.RegisterPair(address(flx_shib_pair), 30);
+        oracle.RegisterPair(address(flx_uni_pair), 30);
 
         //ISSUER REGISTER PAIR
         issuer.setTokenInfo(address(flx_weth_pair), true, false, 11574074);
+        issuer.setTokenInfo(address(flx_shib_pair), true, false, 13574074);
+        issuer.setTokenInfo(address(flx_uni_pair), true, false, 10574074);
 
         //Deploy TilterFactory
         TilterFactory tilterFactory = new TilterFactory(
@@ -138,22 +145,21 @@ contract DeployContracts is Script {
             address(issuer)
         );
         tilterFactory.deploy(address(WETH()));
-        address ethTilterAddress = tilterFactory.getEthTilter();
+        //HYPOTHESIS: script too big
+        tilterFactory.deploy(address(shiba));
+        tilterFactory.deploy(address(uniGov));
 
-        vm.warp(block.timestamp + 900);
-        vm.roll(block.number + 1);
-        vm.warp(block.timestamp + 900);
-        vm.roll(block.number + 1);
-        vm.warp(block.timestamp + 900);
-        vm.roll(block.number + 1);
-        vm.warp(block.timestamp + 901);
-        vm.roll(block.number + 1);
+        address ethTilterAddress = tilterFactory.getEthTilter();
+        address shibTilter = tilterFactory.tiltersByRef(address(shiba));
+        address uniTilter = tilterFactory.tiltersByRef(address(uniGov));
+
+        require(shibTilter != address(0), "shib not created");
+        require(uniTilter != address(0), "uniTilter not created");
 
         flax.setMinter(ethTilterAddress, true);
-        Tilter ethTilter = Tilter(ethTilterAddress);
-       // oracle.update(address(WETH()), address(flax));
-       
-        // (uint flax_minted, uint lp) = ethTilter.refValueOfTilt(1 ether, true);
+        flax.setMinter(shibTilter, true);
+        flax.setMinter(uniTilter, true);
+
         vm.stopBroadcast();
         // Creating a JSON array of input token addresses
         string memory inputs = string(
@@ -170,6 +176,10 @@ contract DeployContracts is Script {
                 addressToString.toAsciiString(address(WETH())),
                 '", "',
                 addressToString.toAsciiString(address(PyroSCX_EYE)),
+                '", "',
+                addressToString.toAsciiString(address(shiba)),
+                '", "',
+                addressToString.toAsciiString(address(uniGov)),
                 '"]'
             )
         );
@@ -209,6 +219,62 @@ contract DeployContracts is Script {
     function char(bytes1 b) internal pure returns (bytes1 c) {
         if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
         else return bytes1(uint8(b) + 0x57);
+    }
+
+    function createFlaxPair(
+        address flax,
+        address token
+    ) private returns (IUniswapV2Pair) {
+        factory().createPair(token, flax);
+        IUniswapV2Pair pair = IUniswapV2Pair(factory().getPair(token, flax));
+        Coupon(token).transfer(address(pair), 1 ether);
+        Coupon(flax).mint(10 ether, address(pair));
+        pair.mint(msg.sender);
+        return pair;
+    }
+
+    function sellFlax(
+        address flaxAddress,
+        address ouputputToken,
+        bool eth
+    ) private {
+        Coupon flax = Coupon(flaxAddress);
+        flax.mint(10 ether, msg.sender);
+        address pairAddress = factory().getPair(flaxAddress, ouputputToken);
+
+        address[] memory path = new address[](2);
+        path[0] = flaxAddress;
+        path[1] = ouputputToken;
+
+        uint tradeAmount = (1 ether) / 20;
+
+        uint flaxReserve = flax.balanceOf(pairAddress);
+        uint ouputReserve = Coupon(ouputputToken).balanceOf(pairAddress);
+
+        uint outAmount = router.getAmountOut(
+            tradeAmount,
+            flaxReserve,
+            ouputReserve
+        );
+        flax.approve(address(router), type(uint).max);
+
+        if (eth) {
+            router.swapExactTokensForETH(
+                tradeAmount,
+                outAmount,
+                path,
+                msg.sender,
+                type(uint).max
+            );
+        } else {
+            router.swapExactTokensForTokens(
+                tradeAmount,
+                outAmount,
+                path,
+                msg.sender,
+                type(uint).max
+            );
+        }
     }
 }
 

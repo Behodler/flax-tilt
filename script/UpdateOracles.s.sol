@@ -50,14 +50,23 @@ contract UpdateOracles is Script {
         address oracleAddress = vm.envAddress("UNIORACLE");
 
         address wethAddress = vm.envAddress("WETH");
+        address shib = vm.envAddress("SHIB");
+        address unigov = vm.envAddress("UNIGOV");
 
         address flaxAddress = vm.envAddress("FLAX");
+
         address tilterAddress = vm.envAddress("TILTER");
 
         Oracle oracle = Oracle(oracleAddress);
 
         oracle.update(wethAddress, flaxAddress);
+        oracle.update(unigov,flaxAddress);
+        oracle.update(shib,flaxAddress);
+
         oracle.updatePeriod(wethAddress, flaxAddress, 1 hours);
+        oracle.updatePeriod(unigov, flaxAddress, 1 hours);
+        oracle.updatePeriod(shib, flaxAddress, 1 hours);
+        
         Tilter ethTilter = Tilter(tilterAddress);
 
         //if this fails, previous oracle stuff was done incorrectly
