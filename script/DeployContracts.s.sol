@@ -15,7 +15,7 @@ import {IUniswapV2Pair} from "@uniswap/core/interfaces/IUniswapV2Pair.sol";
 import {Oracle} from "../src/Oracle.sol";
 import {UniPriceFetcher, TokenType} from "../src/UniPriceFetcher.sol";
 import "../src/TilterFactory.sol";
-import {PyroToken} from '../test/MockPyroToken.sol';
+import {PyroToken} from "../test/MockPyroToken.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 contract DeployContracts is Script {
@@ -60,23 +60,23 @@ contract DeployContracts is Script {
         );
 
         IUniswapV2Pair eye_scx_lp = IUniswapV2Pair(eye_scx_lp_address);
-        eye.mint(10 ether, eye_scx_lp_address);
+        eye.mint(40 ether, eye_scx_lp_address);
         scx.mint(1 ether, eye_scx_lp_address);
         eye_scx_lp.mint(msg.sender);
-        
-        PyroToken pyroSCX_EYE = new PyroToken(eye_scx_lp_address,"Pyro(SCXEYE)","P_SCX/EYE");
-        eye_scx_lp.approve(address(pyroSCX_EYE),type(uint).max);
-        uint balance = eye_scx_lp.balanceOf(msg.sender);
-        pyroSCX_EYE.mint(balance/10);
-        uint mintedPyro = pyroSCX_EYE.balanceOf(msg.sender);
-        pyroSCX_EYE.burn(mintedPyro/5);
 
+        PyroToken pyroSCX_EYE = new PyroToken(
+            eye_scx_lp_address,
+            "Pyro(SCXEYE)",
+            "P_SCX/EYE"
+        );
+        eye_scx_lp.approve(address(pyroSCX_EYE), type(uint).max);
+        uint balance = eye_scx_lp.balanceOf(msg.sender);
+        pyroSCX_EYE.mint(balance / 10);
+        uint mintedPyro = pyroSCX_EYE.balanceOf(msg.sender);
+        pyroSCX_EYE.burn(mintedPyro / 5);
 
         // TODO: convert the fake LP tokens into real LP tokens
 
-       
-
-      
         // Deploy Issuer with the address of Coupon
 
         Coupon shiba = new Coupon("Shiba", "Inu");
@@ -107,10 +107,7 @@ contract DeployContracts is Script {
 
         //create pairs
         WETH().deposit{value: 1 ether}();
-        IUniswapV2Pair flx_weth_pair = createFlaxPair(
-            address(flax),
-            address(WETH())
-        );
+        IUniswapV2Pair flx_weth_pair = createEthPair(address(flax), 11000);
 
         IUniswapV2Pair flx_shib_pair = createFlaxPair(
             address(flax),
@@ -163,6 +160,9 @@ contract DeployContracts is Script {
 
         uniPriceFetcher.setTokenTypeMap(tokens, tokenTypes);
 
+        uint eye_scx_lpPrice = uniPriceFetcher.daiPriceOfToken(
+            eye_scx_lp_address
+        );
         // trade a little
 
         sellFlax(address(flax), address(WETH()), true);

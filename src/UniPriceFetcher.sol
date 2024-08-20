@@ -98,8 +98,15 @@ contract UniPriceFetcher is Ownable {
         } else if (map == TokenType.LP) {
             IUniswapV2Pair pair = IUniswapV2Pair(token);
             uint totalSupply = pair.totalSupply();
-            uint combinedDollarValue = daiPriceOfToken(pair.token0()) +
-                daiPriceOfToken(pair.token1());
+            address token0_a = pair.token0();
+            address token1_a = pair.token1();
+            IERC20 token0 = IERC20(token0_a);
+            IERC20 token1 = IERC20(token1_a);
+            uint bal_0 = token0.balanceOf(token);
+            uint bal_1 = token1.balanceOf(token);
+
+            uint combinedDollarValue = (daiPriceOfToken(token0_a) * bal_0) +
+                (daiPriceOfToken(token1_a) * bal_1);
             return combinedDollarValue / totalSupply;
         } else {
             return daiPriceOfBaseToken(token, map == TokenType.Eth);
