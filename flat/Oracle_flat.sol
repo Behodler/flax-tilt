@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity =0.8.20 ^0.8.20;
 
 // lib/UniswapV2CoreFoundryFriendly/src/interfaces/IUniswapV2Factory.sol
 
@@ -310,6 +310,10 @@ error Debug (uint value, string reason);
 error RefTokenTaken(address refToken, address existingTilter);
 error AdoptionRequiresOwnershipTransfer(address existingOwner);
 error TilterNotMapped(address tilter);
+
+error TokenTypeUnset(address token);
+error TokenFalselyClaimsToBeWeth(address token, address weth);
+error InvalidLP(address token);
 
 // lib/openzeppelin-contracts/contracts/access/Ownable.sol
 

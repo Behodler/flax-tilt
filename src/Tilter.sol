@@ -20,7 +20,7 @@ import "@uniswap/core/libraries/Math.sol";
 /**@notice In order to re-use audited code, the UniswapHelper is copied from Limbo
  * to function as the price tilting contract for Flax.
  */
-contract Tilter is Ownable, ReentrancyGuard, ITilter {
+/*Ownable,*/ contract Tilter is Ownable,ReentrancyGuard, ITilter {
     uint256 constant SPOT = 1e10;
     bool _enabled;
 
@@ -37,12 +37,7 @@ contract Tilter is Ownable, ReentrancyGuard, ITilter {
 
     UniVARS public VARS;
 
-    constructor(
-        address flx,
-        address uniRouter
-    )
-        Ownable(msg.sender) //Governable(limboDAO)
-    {
+    constructor(address flx, address uniRouter) Ownable(msg.sender) {
         VARS.router = IUniswapV2Router02(uniRouter);
         VARS.flax = flx;
         _enabled = true;

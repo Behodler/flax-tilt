@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity =0.8.20 ^0.8.20;
 
 // lib/Locked_VestingTokenPlans/contracts/libraries/TimelockLibrary.sol
 
@@ -1993,6 +1993,10 @@ error Debug (uint value, string reason);
 error RefTokenTaken(address refToken, address existingTilter);
 error AdoptionRequiresOwnershipTransfer(address existingOwner);
 error TilterNotMapped(address tilter);
+
+error TokenTypeUnset(address token);
+error TokenFalselyClaimsToBeWeth(address token, address weth);
+error InvalidLP(address token);
 
 // src/IWeth.sol
 
@@ -4797,7 +4801,7 @@ contract Issuer is IIssuer, Ownable_0, ReentrancyGuard_1 {
 /**@notice In order to re-use audited code, the UniswapHelper is copied from Limbo
  * to function as the price tilting contract for Flax.
  */
-contract Tilter is Ownable_1, ReentrancyGuard_2, ITilter {
+/*Ownable,*/ contract Tilter is Ownable_1,ReentrancyGuard_2, ITilter {
     uint256 constant SPOT = 1e10;
     bool _enabled;
 
@@ -4814,12 +4818,7 @@ contract Tilter is Ownable_1, ReentrancyGuard_2, ITilter {
 
     UniVARS public VARS;
 
-    constructor(
-        address flx,
-        address uniRouter
-    )
-        Ownable_1(msg.sender) //Governable(limboDAO)
-    {
+    constructor(address flx, address uniRouter) Ownable_1(msg.sender) {
         VARS.router = IUniswapV2Router02(uniRouter);
         VARS.flax = flx;
         _enabled = true;

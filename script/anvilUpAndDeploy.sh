@@ -35,7 +35,7 @@ fi
 LOG_FILE="../anvil.log"
 
 # Start anvil in the background and redirect all output to log file
-anvil  --block-time 2 --port 8545 --accounts 10 > "$LOG_FILE" 2>&1 & 
+anvil  --block-time 1 --port 8545 --accounts 10 > "$LOG_FILE" 2>&1 & 
 
 # # Get the PID of the anvil process
 ANVIL_PID=$!
@@ -55,7 +55,7 @@ sleep 2
 # Step 2: Deploy contracts and update addresses.json
 # forge script ./DeployContracts.s.sol --broadcast --rpc-url=http://localhost:8545 --json | jq -r '.[] | .name + ":" + .address' >> ../addresses.json
 # forge script ./DeployContracts.s.sol --tc DeployContracts --broadcast --rpc-url=http://localhost:8545 --json
-forge script ./DeployContracts.s.sol --slow -vvvv -g 200 --gas-limit 40000000 --via-ir --tc DeployContracts --broadcast --rpc-url=http://localhost:8545 --json --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d | grep '^{.*}$' | jq 'del(.gas_used, .returns)' > ./output/addresses.json
+forge script ./DeployContracts.s.sol --slow -g 200 --gas-limit 80000000 --via-ir --tc DeployContracts --broadcast --rpc-url=http://localhost:8545 --json --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d | grep '^{.*}$' | jq 'del(.gas_used, .returns)' > ./output/addresses.json
 
 
 ORACLE_ADDRESS=$(node set_uni_env.js)

@@ -1,5 +1,0 @@
-{
-  "logs": [
-    "{\"Coupon\":\"0x71c95911e9a5d330f4d621842ec243ee1343292e\", \"Issuer\":\"0x1e2f4432bfef9e9ad39da6d272f4aff33629c770\", \"Multicall3\":\"0x8464135c8f25da09e49bc8782676a84730c318bc\", \"HedgeyAdapter\":\"0x63cf2cd54fe91e3545d1379abf5bfd194545259d\", \"UniswapV2Router\":\"0x8613a4029eaa95da61ae65380ac2e7366451bf2b\", \"TilterFactory\":\"0x3c705db336c81c7fefc5746e283ab2c0781a4b7b\", \"Oracle\":\"0xa82ed5224ba72f2f776e09b11dc99e30ee65da8d\", \"Weth\":\"0xf818a7c2afc45cf4b9ddc48933c9a1edd624e46f\", \"EthTilter\":\"0x073250242a879ec71dadf428fb1a0bacf9a807da\", \"msgsender\":\"0x70997970c51812dc3a010c7d01b50e0d17dc79c8\", \"Inputs\":[\"0xbcf26943c0197d2ee0e5d05c716be60cc2761508\", \"0x59f2f1fcfe2474fd5f0b9ba1e73ca90b143eb8d0\", \"0x0b48af34f4c854f5ae1a3d587da471fea45bad52\", \"0xf818a7c2afc45cf4b9ddc48933c9a1edd624e46f\", \"0x90118d110b07abb82ba8980d1c5cc96eea810d2c\", \"0xe6b98f104c1bef218f3893adab4160dc73eb8367\", \"0x5c7c905b505f0cf40ab6600d05e677f717916f6b\"]}"
-  ]
-}

@@ -13,12 +13,14 @@ import {UniswapV2Factory} from "@uniswap/core/UniswapV2Factory.sol";
 import {IUniswapV2Factory} from "@uniswap/core/interfaces/IUniswapV2Factory.sol";
 import {IUniswapV2Pair} from "@uniswap/core/interfaces/IUniswapV2Pair.sol";
 import {Oracle} from "../src/Oracle.sol";
+import {UniPriceFetcher, TokenType} from "../src/UniPriceFetcher.sol";
 import "../src/TilterFactory.sol";
-
+import {PyroToken} from '../test/MockPyroToken.sol';
 import {Vm} from "forge-std/Vm.sol";
 
 contract DeployContracts is Script {
     UniswapV2Router02 router;
+    Coupon dai;
 
     function factory() internal view returns (IUniswapV2Factory) {
         return IUniswapV2Factory(router.factory());
@@ -32,40 +34,58 @@ contract DeployContracts is Script {
         AddressToString addressToString = new AddressToString();
         vm.startBroadcast();
 
+        //SETUP UNISWAP PAIR AND OoRACLE
+        router = new UniswapV2Router02(
+            address(new UniswapV2Factory(msg.sender)),
+            address(new WETH9())
+        );
         //Deploy Multicall3
         Multicall3 multicall3 = new Multicall3();
         // Deploy Flx
         Coupon flax = new Coupon("Flax", "FLX");
         flax.setMinter(msg.sender, true);
         flax.mint(1e20 * 35, msg.sender);
-        Coupon mockInputTokenBurnable = new Coupon("EYE", "EYE");
-        Coupon mockInputTokenNonBurnable = new Coupon(
-            "Uni V2 EYE/SCX",
-            "EYE/SCX"
+        Coupon eye = new Coupon("EYE", "EYE");
+        Coupon scx = new Coupon("Scarcity", "SCX");
+        scx.setMinter(msg.sender, true);
+        eye.setMinter(msg.sender, true);
+
+        eye.mint(13 ether, msg.sender);
+        scx.mint((101107 ether) / 1000, msg.sender);
+
+        factory().createPair(address(eye), address(scx));
+        address eye_scx_lp_address = factory().getPair(
+            address(scx),
+            address(eye)
         );
-        mockInputTokenNonBurnable.setMinter(msg.sender, true);
-        mockInputTokenNonBurnable.mint((6 ether) / 10000, msg.sender);
-        mockInputTokenBurnable.setMinter(msg.sender, true);
-        Coupon SCX = new Coupon("Scarcity", "SCX");
-        SCX.setMinter(msg.sender, true);
-        Coupon PyroSCX_EYE = new Coupon(
-            "Pryo(SCX/EYE Uni V2 LP)",
-            "PyroSCXEYE"
-        );
 
-        PyroSCX_EYE.setMinter(msg.sender, true);
+        IUniswapV2Pair eye_scx_lp = IUniswapV2Pair(eye_scx_lp_address);
+        eye.mint(10 ether, eye_scx_lp_address);
+        scx.mint(1 ether, eye_scx_lp_address);
+        eye_scx_lp.mint(msg.sender);
+        
+        PyroToken pyroSCX_EYE = new PyroToken(eye_scx_lp_address,"Pyro(SCXEYE)","P_SCX/EYE");
+        eye_scx_lp.approve(address(pyroSCX_EYE),type(uint).max);
+        uint balance = eye_scx_lp.balanceOf(msg.sender);
+        pyroSCX_EYE.mint(balance/10);
+        uint mintedPyro = pyroSCX_EYE.balanceOf(msg.sender);
+        pyroSCX_EYE.burn(mintedPyro/5);
 
-        mockInputTokenBurnable.mint(13 ether, msg.sender);
-        SCX.mint((101107 ether) / 1000, msg.sender);
 
-        PyroSCX_EYE.mint(uint((323220 ether) / uint(2200)), msg.sender);
+        // TODO: convert the fake LP tokens into real LP tokens
+
+       
+
+      
         // Deploy Issuer with the address of Coupon
 
         Coupon shiba = new Coupon("Shiba", "Inu");
         Coupon uniGov = new Coupon("UNI", "UNI");
+        dai = new Coupon("Dai", "Dai");
 
         shiba.setMinter(msg.sender, true);
         uniGov.setMinter(msg.sender, true);
+        dai.setMinter(msg.sender, true);
 
         shiba.mint(2000 ether, msg.sender);
         uniGov.mint(3000 ether, msg.sender);
@@ -77,29 +97,13 @@ contract DeployContracts is Script {
         );
         Issuer issuer = new Issuer(address(flax), address(hedgeyAdapter));
         flax.setMinter(address(issuer), true);
-        PyroSCX_EYE.approve(address(issuer), uint(type(uint).max));
+        pyroSCX_EYE.approve(address(issuer), uint(type(uint).max));
         issuer.setLimits(1000, 60, 180, 1);
-        issuer.setTokenInfo(
-            address(mockInputTokenBurnable),
-            true,
-            true,
-            10_000_000_000
-        );
-        issuer.setTokenInfo(address(SCX), true, true, 10_000_000_000);
-        issuer.setTokenInfo(address(PyroSCX_EYE), true, true, 10_000_000_000);
+        issuer.setTokenInfo(address(eye), true, true, 10_000_000_000);
+        issuer.setTokenInfo(address(scx), true, true, 10_000_000_000);
+        issuer.setTokenInfo(address(pyroSCX_EYE), true, true, 10_000_000_000);
 
-        issuer.setTokenInfo(
-            address(mockInputTokenNonBurnable),
-            true,
-            false,
-            10_000_000_000
-        );
-
-        //SETUP UNISWAP PAIR AND OoRACLE
-        router = new UniswapV2Router02(
-            address(new UniswapV2Factory(msg.sender)),
-            address(new WETH9())
-        );
+        issuer.setTokenInfo(address(eye_scx_lp), true, false, 10_000_000_000);
 
         //create pairs
         WETH().deposit{value: 1 ether}();
@@ -108,7 +112,6 @@ contract DeployContracts is Script {
             address(WETH())
         );
 
-        // TODO: Break into multiple scripts :(
         IUniswapV2Pair flx_shib_pair = createFlaxPair(
             address(flax),
             address(shiba)
@@ -119,7 +122,49 @@ contract DeployContracts is Script {
             address(uniGov)
         );
 
+        createEthPair(address(dai), 3000);
+        createEthPair(address(eye), 20000);
+        createEthPair(address(shiba), 4000000);
+        createEthPair(address(scx), 500);
+        createEthPair(address(uniGov), 100);
+
+        UniPriceFetcher uniPriceFetcher = new UniPriceFetcher(
+            address(router),
+            address(dai)
+        );
+
+        address[] memory tokens = new address[](8);
+        TokenType[] memory tokenTypes = new TokenType[](8);
+
+        uint i = 0;
+        tokens[i] = address(flax);
+        tokenTypes[i++] = TokenType.Base;
+
+        tokens[i] = address(eye);
+        tokenTypes[i++] = TokenType.Base;
+
+        tokens[i] = address(scx);
+        tokenTypes[i++] = TokenType.Base;
+
+        tokens[i] = address(eye_scx_lp);
+        tokenTypes[i++] = TokenType.LP;
+
+        tokens[i] = address(WETH());
+        tokenTypes[i++] = TokenType.Eth;
+
+        tokens[i] = address(pyroSCX_EYE);
+        tokenTypes[i++] = TokenType.Pyro;
+
+        tokens[i] = address(shiba);
+        tokenTypes[i++] = TokenType.Base;
+
+        tokens[i] = address(uniGov);
+        tokenTypes[i++] = TokenType.Base;
+
+        uniPriceFetcher.setTokenTypeMap(tokens, tokenTypes);
+
         // trade a little
+
         sellFlax(address(flax), address(WETH()), true);
         sellFlax(address(flax), address(shiba), false);
         sellFlax(address(flax), address(uniGov), false);
@@ -144,9 +189,10 @@ contract DeployContracts is Script {
             address(oracle),
             address(issuer)
         );
-        tilterFactory.deploy(address(WETH()));
-        //HYPOTHESIS: script too big
         tilterFactory.deploy(address(shiba));
+
+        tilterFactory.deploy(address(WETH()));
+
         tilterFactory.deploy(address(uniGov));
 
         address ethTilterAddress = tilterFactory.getEthTilter();
@@ -165,17 +211,15 @@ contract DeployContracts is Script {
         string memory inputs = string(
             abi.encodePacked(
                 '["',
-                addressToString.toAsciiString(address(mockInputTokenBurnable)),
+                addressToString.toAsciiString(address(eye)),
                 '", "',
-                addressToString.toAsciiString(
-                    address(mockInputTokenNonBurnable)
-                ),
+                addressToString.toAsciiString(address(eye_scx_lp)),
                 '", "',
-                addressToString.toAsciiString(address(SCX)),
+                addressToString.toAsciiString(address(scx)),
                 '", "',
                 addressToString.toAsciiString(address(WETH())),
                 '", "',
-                addressToString.toAsciiString(address(PyroSCX_EYE)),
+                addressToString.toAsciiString(address(pyroSCX_EYE)),
                 '", "',
                 addressToString.toAsciiString(address(shiba)),
                 '", "',
@@ -193,12 +237,16 @@ contract DeployContracts is Script {
                 addressToString.toAsciiString(address(issuer)),
                 '", "Multicall3":"',
                 addressToString.toAsciiString(address(multicall3)),
+                '", "Dai":"',
+                addressToString.toAsciiString(address(dai)),
                 '", "HedgeyAdapter":"',
                 addressToString.toAsciiString(address(hedgeyAdapter)),
                 '", "UniswapV2Router":"',
                 addressToString.toAsciiString(address(router)),
                 '", "TilterFactory":"',
                 addressToString.toAsciiString(address(tilterFactory)),
+                '", "UniPriceFetcher":"',
+                addressToString.toAsciiString(address(uniPriceFetcher)),
                 '", "Oracle":"',
                 addressToString.toAsciiString(address(oracle)),
                 '", "Weth":"',
@@ -229,6 +277,23 @@ contract DeployContracts is Script {
         IUniswapV2Pair pair = IUniswapV2Pair(factory().getPair(token, flax));
         Coupon(token).transfer(address(pair), 1 ether);
         Coupon(flax).mint(10 ether, address(pair));
+        pair.mint(msg.sender);
+        return pair;
+    }
+
+    function createEthPair(
+        address token,
+        uint tokenPerEth
+    ) private returns (IUniswapV2Pair) {
+        factory().createPair(address(token), address(WETH()));
+        address pairAddress = factory().getPair(
+            address(token),
+            address(WETH())
+        );
+        Coupon(token).mint(tokenPerEth * (2 ether), pairAddress);
+        WETH().deposit{value: 2 ether}();
+        WETH().transfer(pairAddress, 2 ether);
+        IUniswapV2Pair pair = IUniswapV2Pair(pairAddress);
         pair.mint(msg.sender);
         return pair;
     }
