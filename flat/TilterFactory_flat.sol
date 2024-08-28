@@ -1,101 +1,147 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.20 ^0.8.20;
+pragma solidity ^0.8.20;
 
 // lib/Locked_VestingTokenPlans/contracts/libraries/TimelockLibrary.sol
 
 /// @notice Library to assist with calculation methods of the balances, ends, period amounts for a given plan
 /// used by both the Lockup and Vesting Plans
 library TimelockLibrary {
-  function min(uint256 a, uint256 b) internal pure returns (uint256 _min) {
-    _min = (a <= b) ? a : b;
-  }
-
-  /// @notice function to calculate the end date of a plan based on its start, amount, rate and period
-  function endDate(uint256 start, uint256 amount, uint256 rate, uint256 period) internal pure returns (uint256 end) {
-    end = (amount % rate == 0) ? (amount / rate) * period + start : ((amount / rate) * period) + period + start;
-  }
-
-  /// @notice function to calculate the end period and validate that the parameters passed in are valid
-  function validateEnd(
-    uint256 start,
-    uint256 cliff,
-    uint256 amount,
-    uint256 rate,
-    uint256 period
-  ) internal pure returns (uint256 end, bool valid) {
-    require(amount > 0, '0_amount');
-    require(rate > 0, '0_rate');
-    require(rate <= amount, 'rate > amount');
-    require(period > 0, '0_period');
-    end = (amount % rate == 0) ? (amount / rate) * period + start : ((amount / rate) * period) + period + start;
-    require(cliff <= end, 'cliff > end');
-    valid = true;
-  }
-
-  /// @notice function to calculate the unlocked (claimable) balance, still locked balance, and the most recent timestamp the unlock would take place
-  /// the most recent unlock time is based on the periods, so if the periods are 1, then the unlock time will be the same as the redemption time,
-  /// however if the period more than 1 second, the latest unlock will be a discrete time stamp
-  /// @param start is the start time of the plan
-  /// @param cliffDate is the timestamp of the cliff of the plan
-  /// @param amount is the total unclaimed amount tokens still in the vesting plan
-  /// @param rate is the amount of tokens that unlock per period
-  /// @param period is the seconds in each period, a 1 is a period of 1 second whereby tokens unlock every second
-  /// @param currentTime is the current time being evaluated, typically the block.timestamp, but used just to check the plan is past the start or cliff
-  /// @param redemptionTime is the time requested for the plan to be redeemed, this can be the same as the current time or prior to it for partial redemptions
-  function balanceAtTime(
-    uint256 start,
-    uint256 cliffDate,
-    uint256 amount,
-    uint256 rate,
-    uint256 period,
-    uint256 currentTime,
-    uint256 redemptionTime
-  ) internal pure returns (uint256 unlockedBalance, uint256 lockedBalance, uint256 unlockTime) {
-    if (start > currentTime || cliffDate > currentTime || redemptionTime <= start) {
-      lockedBalance = amount;
-      unlockTime = start;
-    } else {
-      uint256 periodsElapsed = (redemptionTime - start) / period;
-      uint256 calculatedBalance = periodsElapsed * rate;
-      unlockedBalance = min(calculatedBalance, amount);
-      lockedBalance = amount - unlockedBalance;
-      unlockTime = start + (period * periodsElapsed);
+    function min(uint256 a, uint256 b) internal pure returns (uint256 _min) {
+        _min = (a <= b) ? a : b;
     }
-  }
 
-  function calculateCombinedRate(
-    uint256 combinedAmount,
-    uint256 combinedRates,
-    uint256 start,
-    uint256 period,
-    uint256 targetEnd
-  ) internal pure returns (uint256 rate, uint256 end) {
-    uint256 numerator = combinedAmount * period;
-    uint256 denominator = (combinedAmount % combinedRates == 0) ? targetEnd - start : targetEnd - start - period;
-    rate = numerator / denominator;
-    end = endDate(start, combinedAmount, rate, period);
-  }
+    /// @notice function to calculate the end date of a plan based on its start, amount, rate and period
+    function endDate(
+        uint256 start,
+        uint256 amount,
+        uint256 rate,
+        uint256 period
+    ) internal pure returns (uint256 end) {
+        end = (amount % rate == 0)
+            ? (amount / rate) * period + start
+            : ((amount / rate) * period) + period + start;
+    }
 
-  function calculateSegmentRates(
-    uint256 originalRate,
-    uint256 originalAmount,
-    uint256 planAmount,
-    uint256 segmentAmount,
-    uint256 start,
-    uint256 end,
-    uint256 period,
-    uint256 cliff
-  ) internal pure returns (uint256 planRate, uint256 segmentRate, uint256 planEnd, uint256 segmentEnd) {
-    planRate = (originalRate * ((planAmount * (10 ** 18)) / originalAmount)) / (10 ** 18);
-    segmentRate = (segmentAmount % (originalRate - planRate) == 0)
-      ? (segmentAmount * period) / (end - start)
-      : (segmentAmount * period) / (end - start - period);
-    bool validPlanEnd;
-    bool validSegmentEnd;
-    (planEnd, validPlanEnd) = validateEnd(start, cliff, planAmount, planRate, period);
-    (segmentEnd, validSegmentEnd) = validateEnd(start, cliff, segmentAmount, segmentRate, period);
-    require(validPlanEnd && validSegmentEnd, 'invalid end date');
-  }
+    /// @notice function to calculate the end period and validate that the parameters passed in are valid
+    function validateEnd(
+        uint256 start,
+        uint256 cliff,
+        uint256 amount,
+        uint256 rate,
+        uint256 period
+    ) internal pure returns (uint256 end, bool valid) {
+        require(amount > 0, "0_amount");
+        require(rate > 0, "0_rate");
+        require(rate <= amount, "rate > amount");
+        require(period > 0, "0_period");
+        end = (amount % rate == 0)
+            ? (amount / rate) * period + start
+            : ((amount / rate) * period) + period + start;
+        require(cliff <= end, "cliff > end");
+        valid = true;
+    }
+
+    /// @notice function to calculate the unlocked (claimable) balance, still locked balance, and the most recent timestamp the unlock would take place
+    /// the most recent unlock time is based on the periods, so if the periods are 1, then the unlock time will be the same as the redemption time,
+    /// however if the period more than 1 second, the latest unlock will be a discrete time stamp
+    /// @param start is the start time of the plan
+    /// @param cliffDate is the timestamp of the cliff of the plan
+    /// @param amount is the total unclaimed amount tokens still in the vesting plan
+    /// @param rate is the amount of tokens that unlock per period
+    /// @param period is the seconds in each period, a 1 is a period of 1 second whereby tokens unlock every second
+    /// @param currentTime is the current time being evaluated, typically the block.timestamp, but used just to check the plan is past the start or cliff
+    /// @param redemptionTime is the time requested for the plan to be redeemed, this can be the same as the current time or prior to it for partial redemptions
+    function balanceAtTime(
+        uint256 start,
+        uint256 cliffDate,
+        uint256 amount,
+        uint256 rate,
+        uint256 period,
+        uint256 currentTime,
+        uint256 redemptionTime
+    )
+        internal
+        pure
+        returns (
+            uint256 unlockedBalance,
+            uint256 lockedBalance,
+            uint256 unlockTime
+        )
+    {
+        if (
+            start > currentTime ||
+            cliffDate > currentTime ||
+            redemptionTime <= start
+        ) {
+            lockedBalance = amount;
+            unlockTime = start;
+        } else {
+            uint256 periodsElapsed = (redemptionTime - start) / period;
+            uint256 calculatedBalance = periodsElapsed * rate;
+            unlockedBalance = min(calculatedBalance, amount);
+            lockedBalance = amount - unlockedBalance;
+            unlockTime = start + (period * periodsElapsed);
+        }
+    }
+
+    function calculateCombinedRate(
+        uint256 combinedAmount,
+        uint256 combinedRates,
+        uint256 start,
+        uint256 period,
+        uint256 targetEnd
+    ) internal pure returns (uint256 rate, uint256 end) {
+        uint256 numerator = combinedAmount * period;
+        uint256 denominator = (combinedAmount % combinedRates == 0)
+            ? targetEnd - start
+            : targetEnd - start - period;
+        rate = numerator / denominator;
+        end = endDate(start, combinedAmount, rate, period);
+    }
+
+    function calculateSegmentRates(
+        uint256 originalRate,
+        uint256 originalAmount,
+        uint256 planAmount,
+        uint256 segmentAmount,
+        uint256 start,
+        uint256 end,
+        uint256 period,
+        uint256 cliff
+    )
+        internal
+        pure
+        returns (
+            uint256 planRate,
+            uint256 segmentRate,
+            uint256 planEnd,
+            uint256 segmentEnd
+        )
+    {
+        planRate =
+            (originalRate * ((planAmount * (10 ** 18)) / originalAmount)) /
+            (10 ** 18);
+        segmentRate = (segmentAmount % (originalRate - planRate) == 0)
+            ? (segmentAmount * period) / (end - start)
+            : (segmentAmount * period) / (end - start - period);
+        bool validPlanEnd;
+        bool validSegmentEnd;
+        (planEnd, validPlanEnd) = validateEnd(
+            start,
+            cliff,
+            planAmount,
+            planRate,
+            period
+        );
+        (segmentEnd, validSegmentEnd) = validateEnd(
+            start,
+            cliff,
+            segmentAmount,
+            segmentRate,
+            period
+        );
+        require(validPlanEnd && validSegmentEnd, "invalid end date");
+    }
 }
 
 // lib/Locked_VestingTokenPlans/contracts/oz/security/ReentrancyGuard.sol
@@ -195,7 +241,11 @@ interface IERC20_0 {
      * @dev Emitted when the allowance of a `spender` for an `owner` is set by
      * a call to {approve}. `value` is the new allowance.
      */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 
     /**
      * @dev Returns the amount of tokens in existence.
@@ -223,7 +273,10 @@ interface IERC20_0 {
      *
      * This value changes when {approve} or {transferFrom} are called.
      */
-    function allowance(address owner, address spender) external view returns (uint256);
+    function allowance(
+        address owner,
+        address spender
+    ) external view returns (uint256);
 
     /**
      * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
@@ -250,7 +303,11 @@ interface IERC20_0 {
      *
      * Emits a {Transfer} event.
      */
-    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool);
 }
 
 // lib/Locked_VestingTokenPlans/contracts/oz/token/ERC20/extensions/IERC20Permit.sol
@@ -433,10 +490,16 @@ library Address {
      * https://solidity.readthedocs.io/en/v0.8.20/security-considerations.html#use-the-checks-effects-interactions-pattern[checks-effects-interactions pattern].
      */
     function sendValue(address payable recipient, uint256 amount) internal {
-        require(address(this).balance >= amount, "Address: insufficient balance");
+        require(
+            address(this).balance >= amount,
+            "Address: insufficient balance"
+        );
 
         (bool success, ) = recipient.call{value: amount}("");
-        require(success, "Address: unable to send value, recipient may have reverted");
+        require(
+            success,
+            "Address: unable to send value, recipient may have reverted"
+        );
     }
 
     /**
@@ -457,8 +520,17 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCall(address target, bytes memory data) internal returns (bytes memory) {
-        return functionCallWithValue(target, data, 0, "Address: low-level call failed");
+    function functionCall(
+        address target,
+        bytes memory data
+    ) internal returns (bytes memory) {
+        return
+            functionCallWithValue(
+                target,
+                data,
+                0,
+                "Address: low-level call failed"
+            );
     }
 
     /**
@@ -486,8 +558,18 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCallWithValue(address target, bytes memory data, uint256 value) internal returns (bytes memory) {
-        return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
+    function functionCallWithValue(
+        address target,
+        bytes memory data,
+        uint256 value
+    ) internal returns (bytes memory) {
+        return
+            functionCallWithValue(
+                target,
+                data,
+                value,
+                "Address: low-level call with value failed"
+            );
     }
 
     /**
@@ -502,9 +584,20 @@ library Address {
         uint256 value,
         string memory errorMessage
     ) internal returns (bytes memory) {
-        require(address(this).balance >= value, "Address: insufficient balance for call");
-        (bool success, bytes memory returndata) = target.call{value: value}(data);
-        return verifyCallResultFromTarget(target, success, returndata, errorMessage);
+        require(
+            address(this).balance >= value,
+            "Address: insufficient balance for call"
+        );
+        (bool success, bytes memory returndata) = target.call{value: value}(
+            data
+        );
+        return
+            verifyCallResultFromTarget(
+                target,
+                success,
+                returndata,
+                errorMessage
+            );
     }
 
     /**
@@ -513,8 +606,16 @@ library Address {
      *
      * _Available since v3.3._
      */
-    function functionStaticCall(address target, bytes memory data) internal view returns (bytes memory) {
-        return functionStaticCall(target, data, "Address: low-level static call failed");
+    function functionStaticCall(
+        address target,
+        bytes memory data
+    ) internal view returns (bytes memory) {
+        return
+            functionStaticCall(
+                target,
+                data,
+                "Address: low-level static call failed"
+            );
     }
 
     /**
@@ -529,7 +630,13 @@ library Address {
         string memory errorMessage
     ) internal view returns (bytes memory) {
         (bool success, bytes memory returndata) = target.staticcall(data);
-        return verifyCallResultFromTarget(target, success, returndata, errorMessage);
+        return
+            verifyCallResultFromTarget(
+                target,
+                success,
+                returndata,
+                errorMessage
+            );
     }
 
     /**
@@ -538,8 +645,16 @@ library Address {
      *
      * _Available since v3.4._
      */
-    function functionDelegateCall(address target, bytes memory data) internal returns (bytes memory) {
-        return functionDelegateCall(target, data, "Address: low-level delegate call failed");
+    function functionDelegateCall(
+        address target,
+        bytes memory data
+    ) internal returns (bytes memory) {
+        return
+            functionDelegateCall(
+                target,
+                data,
+                "Address: low-level delegate call failed"
+            );
     }
 
     /**
@@ -554,7 +669,13 @@ library Address {
         string memory errorMessage
     ) internal returns (bytes memory) {
         (bool success, bytes memory returndata) = target.delegatecall(data);
-        return verifyCallResultFromTarget(target, success, returndata, errorMessage);
+        return
+            verifyCallResultFromTarget(
+                target,
+                success,
+                returndata,
+                errorMessage
+            );
     }
 
     /**
@@ -599,7 +720,10 @@ library Address {
         }
     }
 
-    function _revert(bytes memory returndata, string memory errorMessage) private pure {
+    function _revert(
+        bytes memory returndata,
+        string memory errorMessage
+    ) private pure {
         // Look for revert reason and bubble it up if present
         if (returndata.length > 0) {
             // The easiest way to bubble the revert reason is using memory via assembly
@@ -763,7 +887,11 @@ library Math_0 {
      * @dev Original credit to Remco Bloemen under MIT license (https://xn--2-umb.com/21/muldiv)
      * with further edits by Uniswap Labs also under MIT license.
      */
-    function mulDiv(uint256 x, uint256 y, uint256 denominator) internal pure returns (uint256 result) {
+    function mulDiv(
+        uint256 x,
+        uint256 y,
+        uint256 denominator
+    ) internal pure returns (uint256 result) {
         unchecked {
             // 512-bit multiply [prod1 prod0] = x * y. Compute the product mod 2^256 and mod 2^256 - 1, then use
             // use the Chinese Remainder Theorem to reconstruct the 512 bit result. The result is stored in two 256
@@ -847,7 +975,12 @@ library Math_0 {
     /**
      * @notice Calculates x * y / denominator with full precision, following the selected rounding direction.
      */
-    function mulDiv(uint256 x, uint256 y, uint256 denominator, Rounding rounding) internal pure returns (uint256) {
+    function mulDiv(
+        uint256 x,
+        uint256 y,
+        uint256 denominator,
+        Rounding rounding
+    ) internal pure returns (uint256) {
         uint256 result = mulDiv(x, y, denominator);
         if (rounding == Rounding.Up && mulmod(x, y, denominator) > 0) {
             result += 1;
@@ -896,10 +1029,15 @@ library Math_0 {
     /**
      * @notice Calculates sqrt(a), following the selected rounding direction.
      */
-    function sqrt(uint256 a, Rounding rounding) internal pure returns (uint256) {
+    function sqrt(
+        uint256 a,
+        Rounding rounding
+    ) internal pure returns (uint256) {
         unchecked {
             uint256 result = sqrt(a);
-            return result + (rounding == Rounding.Up && result * result < a ? 1 : 0);
+            return
+                result +
+                (rounding == Rounding.Up && result * result < a ? 1 : 0);
         }
     }
 
@@ -949,10 +1087,15 @@ library Math_0 {
      * @dev Return the log in base 2, following the selected rounding direction, of a positive value.
      * Returns 0 if given 0.
      */
-    function log2(uint256 value, Rounding rounding) internal pure returns (uint256) {
+    function log2(
+        uint256 value,
+        Rounding rounding
+    ) internal pure returns (uint256) {
         unchecked {
             uint256 result = log2(value);
-            return result + (rounding == Rounding.Up && 1 << result < value ? 1 : 0);
+            return
+                result +
+                (rounding == Rounding.Up && 1 << result < value ? 1 : 0);
         }
     }
 
@@ -998,10 +1141,15 @@ library Math_0 {
      * @dev Return the log in base 10, following the selected rounding direction, of a positive value.
      * Returns 0 if given 0.
      */
-    function log10(uint256 value, Rounding rounding) internal pure returns (uint256) {
+    function log10(
+        uint256 value,
+        Rounding rounding
+    ) internal pure returns (uint256) {
         unchecked {
             uint256 result = log10(value);
-            return result + (rounding == Rounding.Up && 10 ** result < value ? 1 : 0);
+            return
+                result +
+                (rounding == Rounding.Up && 10 ** result < value ? 1 : 0);
         }
     }
 
@@ -1041,10 +1189,15 @@ library Math_0 {
      * @dev Return the log in base 256, following the selected rounding direction, of a positive value.
      * Returns 0 if given 0.
      */
-    function log256(uint256 value, Rounding rounding) internal pure returns (uint256) {
+    function log256(
+        uint256 value,
+        Rounding rounding
+    ) internal pure returns (uint256) {
         unchecked {
             uint256 result = log256(value);
-            return result + (rounding == Rounding.Up && 1 << (result << 3) < value ? 1 : 0);
+            return
+                result +
+                (rounding == Rounding.Up && 1 << (result << 3) < value ? 1 : 0);
         }
     }
 }
@@ -1096,51 +1249,66 @@ library SignedMath {
 
 contract URIAdmin {
     /// @dev baseURI is the URI directory where the metadata is stored
-  string public baseURI;
-  /// @dev bool to ensure uri has been set before admin can be deleted
-  bool internal uriSet;
-  /// @dev admin for setting the baseURI;
-  address internal uriAdmin;
+    string public baseURI;
+    /// @dev bool to ensure uri has been set before admin can be deleted
+    bool internal uriSet;
+    /// @dev admin for setting the baseURI;
+    address internal uriAdmin;
 
-  /// @notice event for when a new URI is set for the NFT metadata linking
-  event URISet(string newURI);
+    /// @notice event for when a new URI is set for the NFT metadata linking
+    event URISet(string newURI);
 
-  /// @notice event for when the URI admin is deleted
-  event URIAdminDeleted(address _admin);
+    /// @notice event for when the URI admin is deleted
+    event URIAdminDeleted(address _admin);
 
-  /// @notice function to set the base URI after the contract has been launched, only the admin can call
-  /// @param _uri is the new baseURI for the metadata
-  function updateBaseURI(string memory _uri) external {
-    require(msg.sender == uriAdmin, '!ADMIN');
-    baseURI = _uri;
-    uriSet = true;
-    emit URISet(_uri);
-  }
+    /// @notice function to set the base URI after the contract has been launched, only the admin can call
+    /// @param _uri is the new baseURI for the metadata
+    function updateBaseURI(string memory _uri) external {
+        require(msg.sender == uriAdmin, "!ADMIN");
+        baseURI = _uri;
+        uriSet = true;
+        emit URISet(_uri);
+    }
 
-  /// @notice function to delete the admin once the uri has been set
-  function deleteAdmin() external {
-    require(msg.sender == uriAdmin, '!ADMIN');
-    require(uriSet, '!SET');
-    delete uriAdmin;
-    emit URIAdminDeleted(msg.sender);
-  }
+    /// @notice function to delete the admin once the uri has been set
+    function deleteAdmin() external {
+        require(msg.sender == uriAdmin, "!ADMIN");
+        require(uriSet, "!SET");
+        delete uriAdmin;
+        emit URIAdminDeleted(msg.sender);
+    }
 }
 
 // lib/UniswapV2CoreFoundryFriendly/src/interfaces/IUniswapV2Factory.sol
 
 interface IUniswapV2Factory {
-    event PairCreated(address indexed token0, address indexed token1, address pair, uint);
+    event PairCreated(
+        address indexed token0,
+        address indexed token1,
+        address pair,
+        uint
+    );
 
     function feeTo() external view returns (address);
+
     function feeToSetter() external view returns (address);
 
-    function getPair(address tokenA, address tokenB) external view returns (address pair);
+    function getPair(
+        address tokenA,
+        address tokenB
+    ) external view returns (address pair);
+
     function allPairs(uint) external view returns (address pair);
+
     function allPairsLength() external view returns (uint);
 
-    function createPair(address tokenA, address tokenB) external returns (address pair);
+    function createPair(
+        address tokenA,
+        address tokenB
+    ) external returns (address pair);
 
     function setFeeTo(address) external;
+
     function setFeeToSetter(address) external;
 }
 
@@ -1151,22 +1319,49 @@ interface IUniswapV2Pair {
     event Transfer(address indexed from, address indexed to, uint value);
 
     function name() external pure returns (string memory);
+
     function symbol() external pure returns (string memory);
+
     function decimals() external pure returns (uint8);
+
     function totalSupply() external view returns (uint);
+
     function balanceOf(address owner) external view returns (uint);
-    function allowance(address owner, address spender) external view returns (uint);
+
+    function allowance(
+        address owner,
+        address spender
+    ) external view returns (uint);
 
     function approve(address spender, uint value) external returns (bool);
+
     function transfer(address to, uint value) external returns (bool);
-    function transferFrom(address from, address to, uint value) external returns (bool);
+
+    function transferFrom(
+        address from,
+        address to,
+        uint value
+    ) external returns (bool);
 
     function nonces(address owner) external view returns (uint);
 
-    function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
+    function permit(
+        address owner,
+        address spender,
+        uint value,
+        uint deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
 
     event Mint(address indexed sender, uint amount0, uint amount1);
-    event Burn(address indexed sender, uint amount0, uint amount1, address indexed to);
+    event Burn(
+        address indexed sender,
+        uint amount0,
+        uint amount1,
+        address indexed to
+    );
     event Swap(
         address indexed sender,
         uint amount0In,
@@ -1178,18 +1373,37 @@ interface IUniswapV2Pair {
     event Sync(uint112 reserve0, uint112 reserve1);
 
     function MINIMUM_LIQUIDITY() external pure returns (uint);
+
     function factory() external view returns (address);
+
     function token0() external view returns (address);
+
     function token1() external view returns (address);
-    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+
+    function getReserves()
+        external
+        view
+        returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+
     function price0CumulativeLast() external view returns (uint);
+
     function price1CumulativeLast() external view returns (uint);
+
     function kLast() external view returns (uint);
 
     function mint(address to) external returns (uint liquidity);
+
     function burn(address to) external returns (uint amount0, uint amount1);
-    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+
+    function swap(
+        uint amount0Out,
+        uint amount1Out,
+        address to,
+        bytes calldata data
+    ) external;
+
     function skim(address to) external;
+
     function sync() external;
 
     function initialize(address, address) external;
@@ -1222,8 +1436,9 @@ library Math_1 {
 // lib/UniswapV2PeripheryFoundryFriendly/src/interfaces/IUniswapV2Router01.sol
 
 interface IUniswapV2Router01 {
-    function factory() external  returns (address);
-    function WETH() external  returns (address);
+    function factory() external returns (address);
+
+    function WETH() external returns (address);
 
     function addLiquidity(
         address tokenA,
@@ -1235,6 +1450,7 @@ interface IUniswapV2Router01 {
         address to,
         uint deadline
     ) external returns (uint amountA, uint amountB, uint liquidity);
+
     function addLiquidityETH(
         address token,
         uint amountTokenDesired,
@@ -1242,7 +1458,11 @@ interface IUniswapV2Router01 {
         uint amountETHMin,
         address to,
         uint deadline
-    ) external payable returns (uint amountToken, uint amountETH, uint liquidity);
+    )
+        external
+        payable
+        returns (uint amountToken, uint amountETH, uint liquidity);
+
     function removeLiquidity(
         address tokenA,
         address tokenB,
@@ -1252,6 +1472,7 @@ interface IUniswapV2Router01 {
         address to,
         uint deadline
     ) external returns (uint amountA, uint amountB);
+
     function removeLiquidityETH(
         address token,
         uint liquidity,
@@ -1260,6 +1481,7 @@ interface IUniswapV2Router01 {
         address to,
         uint deadline
     ) external returns (uint amountToken, uint amountETH);
+
     function removeLiquidityWithPermit(
         address tokenA,
         address tokenB,
@@ -1268,8 +1490,12 @@ interface IUniswapV2Router01 {
         uint amountBMin,
         address to,
         uint deadline,
-        bool approveMax, uint8 v, bytes32 r, bytes32 s
+        bool approveMax,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
     ) external returns (uint amountA, uint amountB);
+
     function removeLiquidityETHWithPermit(
         address token,
         uint liquidity,
@@ -1277,8 +1503,12 @@ interface IUniswapV2Router01 {
         uint amountETHMin,
         address to,
         uint deadline,
-        bool approveMax, uint8 v, bytes32 r, bytes32 s
+        bool approveMax,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
     ) external returns (uint amountToken, uint amountETH);
+
     function swapExactTokensForTokens(
         uint amountIn,
         uint amountOutMin,
@@ -1286,6 +1516,7 @@ interface IUniswapV2Router01 {
         address to,
         uint deadline
     ) external returns (uint[] memory amounts);
+
     function swapTokensForExactTokens(
         uint amountOut,
         uint amountInMax,
@@ -1293,26 +1524,64 @@ interface IUniswapV2Router01 {
         address to,
         uint deadline
     ) external returns (uint[] memory amounts);
-    function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
-        external
-        payable
-        returns (uint[] memory amounts);
-    function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
-        external
-        returns (uint[] memory amounts);
-    function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
-        external
-        returns (uint[] memory amounts);
-    function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
-        external
-        payable
-        returns (uint[] memory amounts);
 
-    function quote(uint amountA, uint reserveA, uint reserveB) external pure returns (uint amountB);
-    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) external pure returns (uint amountOut);
-    function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) external pure returns (uint amountIn);
-    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);
-    function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
+    function swapExactETHForTokens(
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external payable returns (uint[] memory amounts);
+
+    function swapTokensForExactETH(
+        uint amountOut,
+        uint amountInMax,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts);
+
+    function swapExactTokensForETH(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts);
+
+    function swapETHForExactTokens(
+        uint amountOut,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external payable returns (uint[] memory amounts);
+
+    function quote(
+        uint amountA,
+        uint reserveA,
+        uint reserveB
+    ) external pure returns (uint amountB);
+
+    function getAmountOut(
+        uint amountIn,
+        uint reserveIn,
+        uint reserveOut
+    ) external pure returns (uint amountOut);
+
+    function getAmountIn(
+        uint amountOut,
+        uint reserveIn,
+        uint reserveOut
+    ) external pure returns (uint amountIn);
+
+    function getAmountsOut(
+        uint amountIn,
+        address[] calldata path
+    ) external view returns (uint[] memory amounts);
+
+    function getAmountsIn(
+        uint amountOut,
+        address[] calldata path
+    ) external view returns (uint[] memory amounts);
 }
 
 // lib/UniswapV2PeripheryFoundryFriendly/src/lib/Babylonian.sol
@@ -1373,7 +1642,7 @@ library BitMath {
     // returns the 0 indexed position of the most significant bit of the input x
     // s.t. x >= 2**msb and x < 2**(msb+1)
     function mostSignificantBit(uint256 x) internal pure returns (uint8 r) {
-        require(x > 0, 'BitMath::mostSignificantBit: zero');
+        require(x > 0, "BitMath::mostSignificantBit: zero");
 
         if (x >= 0x100000000000000000000000000000000) {
             x >>= 128;
@@ -1410,7 +1679,7 @@ library BitMath {
     // s.t. (x & 2**lsb) != 0 and (x & (2**(lsb) - 1)) == 0)
     // i.e. the bit at the index is set and the mask of all lower bits is 0
     function leastSignificantBit(uint256 x) internal pure returns (uint8 r) {
-        require(x > 0, 'BitMath::leastSignificantBit: zero');
+        require(x > 0, "BitMath::leastSignificantBit: zero");
 
         r = 255;
         if (x & type(uint128).max > 0) {
@@ -1457,14 +1726,17 @@ library BitMath {
 // taken from https://medium.com/coinmonks/math-in-solidity-part-3-percents-and-proportions-4db014e080b1
 // license is CC-BY-4.0
 library FullMath {
-    function fullMul(uint256 x, uint256 y) internal pure returns (uint256 l, uint256 h) {
+    function fullMul(
+        uint256 x,
+        uint256 y
+    ) internal pure returns (uint256 l, uint256 h) {
         uint256 mm = mulmod(x, y, type(uint256).max);
         l = x * y;
         h = mm - l;
         if (mm < l) h -= 1;
     }
 
-   function fullDiv(
+    function fullDiv(
         uint256 l,
         uint256 h,
         uint256 d
@@ -1484,7 +1756,7 @@ library FullMath {
         r *= 2 - d * r;
         return l * r;
     }
-    
+
     function mulDiv(
         uint256 x,
         uint256 y,
@@ -1498,7 +1770,7 @@ library FullMath {
 
         if (h == 0) return l / d;
 
-        require(h < d, 'FullMath: FULLDIV_OVERFLOW');
+        require(h < d, "FullMath: FULLDIV_OVERFLOW");
         return fullDiv(l, h, d);
     }
 }
@@ -1509,15 +1781,15 @@ library FullMath {
 
 library SafeMath {
     function add(uint x, uint y) internal pure returns (uint z) {
-        require((z = x + y) >= x, 'ds-math-add-overflow');
+        require((z = x + y) >= x, "ds-math-add-overflow");
     }
 
     function sub(uint x, uint y) internal pure returns (uint z) {
-        require((z = x - y) <= x, 'ds-math-sub-underflow');
+        require((z = x - y) <= x, "ds-math-sub-underflow");
     }
 
     function mul(uint x, uint y) internal pure returns (uint z) {
-        require(y == 0 || (z = x * y) / y == x, 'ds-math-mul-overflow');
+        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
     }
 }
 
@@ -1541,7 +1813,11 @@ interface IERC20_1 {
      * @dev Emitted when the allowance of a `spender` for an `owner` is set by
      * a call to {approve}. `value` is the new allowance.
      */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 
     /**
      * @dev Returns the value of tokens in existence.
@@ -1569,7 +1845,10 @@ interface IERC20_1 {
      *
      * This value changes when {approve} or {transferFrom} are called.
      */
-    function allowance(address owner, address spender) external view returns (uint256);
+    function allowance(
+        address owner,
+        address spender
+    ) external view returns (uint256);
 
     /**
      * @dev Sets a `value` amount of tokens as the allowance of `spender` over the
@@ -1597,7 +1876,11 @@ interface IERC20_1 {
      *
      * Emits a {Transfer} event.
      */
-    function transferFrom(address from, address to, uint256 value) external returns (bool);
+    function transferFrom(
+        address from,
+        address to,
+        uint256 value
+    ) external returns (bool);
 }
 
 // lib/flax/lib/openzeppelin-contracts/contracts/utils/Context.sol
@@ -1719,7 +2002,7 @@ abstract contract ReentrancyGuard_1 {
 
 error UnauthorizedMinter(address minter, bool hasMintingRight);
 error InvalidMintTarget(uint target);
-error InvalidLockConfig(uint threshold_size,uint days_multiple,uint offset);
+error InvalidLockConfig(uint threshold_size, uint days_multiple, uint offset);
 error minFlaxMintThresholdTooLow(uint threshold);
 
 // lib/flax/src/IIssuer.sol
@@ -1808,7 +2091,11 @@ interface IERC20_2 {
      * @dev Emitted when the allowance of a `spender` for an `owner` is set by
      * a call to {approve}. `value` is the new allowance.
      */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 
     /**
      * @dev Returns the value of tokens in existence.
@@ -1836,7 +2123,10 @@ interface IERC20_2 {
      *
      * This value changes when {approve} or {transferFrom} are called.
      */
-    function allowance(address owner, address spender) external view returns (uint256);
+    function allowance(
+        address owner,
+        address spender
+    ) external view returns (uint256);
 
     /**
      * @dev Sets a `value` amount of tokens as the allowance of `spender` over the
@@ -1864,7 +2154,11 @@ interface IERC20_2 {
      *
      * Emits a {Transfer} event.
      */
-    function transferFrom(address from, address to, uint256 value) external returns (bool);
+    function transferFrom(
+        address from,
+        address to,
+        uint256 value
+    ) external returns (bool);
 }
 
 // lib/openzeppelin-contracts/contracts/utils/Context.sol
@@ -1996,10 +2290,10 @@ error ApproveToNonZero(address, address, uint);
 error OperationFailure();
 error AllowanceExceeded(uint, uint);
 error InsufficientFlaxForTilting(uint flaxBalance, uint requiredAmount);
-error TitlerHasBeenDisabledByOwner ();
+error TitlerHasBeenDisabledByOwner();
 error InputTokenMismatch(address inputToken, address referenceToken);
 error EthImpliesWeth(address inputToken, address wethAddress);
-error Debug (uint value, string reason);
+error Debug(uint value, string reason);
 error RefTokenTaken(address refToken, address existingTilter);
 error AdoptionRequiresOwnershipTransfer(address existingOwner);
 error TilterNotMapped(address tilter);
@@ -2012,7 +2306,9 @@ error InvalidLP(address token);
 
 interface IWETH {
     function deposit() external payable;
+
     function transfer(address to, uint value) external returns (bool);
+
     function withdraw(uint) external;
 }
 
@@ -2027,17 +2323,29 @@ interface IERC721 is IERC165 {
     /**
      * @dev Emitted when `tokenId` token is transferred from `from` to `to`.
      */
-    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Transfer(
+        address indexed from,
+        address indexed to,
+        uint256 indexed tokenId
+    );
 
     /**
      * @dev Emitted when `owner` enables `approved` to manage the `tokenId` token.
      */
-    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event Approval(
+        address indexed owner,
+        address indexed approved,
+        uint256 indexed tokenId
+    );
 
     /**
      * @dev Emitted when `owner` enables or disables (`approved`) `operator` to manage all of its assets.
      */
-    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    event ApprovalForAll(
+        address indexed owner,
+        address indexed operator,
+        bool approved
+    );
 
     /**
      * @dev Returns the number of tokens in ``owner``'s account.
@@ -2066,7 +2374,12 @@ interface IERC721 is IERC165 {
      *
      * Emits a {Transfer} event.
      */
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes calldata data
+    ) external;
 
     /**
      * @dev Safely transfers `tokenId` token from `from` to `to`, checking first that contract recipients
@@ -2082,7 +2395,11 @@ interface IERC721 is IERC165 {
      *
      * Emits a {Transfer} event.
      */
-    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) external;
 
     /**
      * @dev Transfers `tokenId` token from `from` to `to`.
@@ -2136,14 +2453,19 @@ interface IERC721 is IERC165 {
      *
      * - `tokenId` must exist.
      */
-    function getApproved(uint256 tokenId) external view returns (address operator);
+    function getApproved(
+        uint256 tokenId
+    ) external view returns (address operator);
 
     /**
      * @dev Returns if the `operator` is allowed to manage all of the assets of `owner`.
      *
      * See {setApprovalForAll}
      */
-    function isApprovedForAll(address owner, address operator) external view returns (bool);
+    function isApprovedForAll(
+        address owner,
+        address operator
+    ) external view returns (bool);
 }
 
 // lib/Locked_VestingTokenPlans/contracts/oz/utils/introspection/ERC165.sol
@@ -2168,7 +2490,9 @@ abstract contract ERC165 is IERC165 {
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override returns (bool) {
         return interfaceId == type(IERC165).interfaceId;
     }
 }
@@ -2179,101 +2503,115 @@ abstract contract ERC165 is IERC165 {
 /// it contains the storage of the lockup plan object (Plan struct), as well as the events that the lockup plan contracts emit
 
 contract LockupStorage {
-  /// @dev the Plan is the storage in a struct of the tokens that are locked and being unlocked
-  /// @param token is the token address being timelocked
-  /// @param amount is the current amount of tokens locked in the lockup plan, both unclaimed unlocked and still locked tokens. This parameter is updated each time tokens are redeemed, reset to the new remaining locked and unclaimed amount
-  /// @param start is the start date when token unlock begins or began. This parameter gets updated each time tokens are redeemed and claimed, reset to the most recent redeem time
-  /// @param cliff is an optional field to add a single cliff date prior to which the tokens cannot be redeemed, this does not change
-  /// @param rate is the amount of tokens that unlock in a period. This parameter is constand for each plan. 
-  /// @param period is the length of time in between each discrete time when tokens unlock. If this is set to 1, then tokens unlocke every second. Otherwise the period is longer to allow for interval lockup plans. 
-  struct Plan {
-    address token;
-    uint256 amount;
-    uint256 start;
-    uint256 cliff;
-    uint256 rate;
-    uint256 period;
-  }
+    /// @dev the Plan is the storage in a struct of the tokens that are locked and being unlocked
+    /// @param token is the token address being timelocked
+    /// @param amount is the current amount of tokens locked in the lockup plan, both unclaimed unlocked and still locked tokens. This parameter is updated each time tokens are redeemed, reset to the new remaining locked and unclaimed amount
+    /// @param start is the start date when token unlock begins or began. This parameter gets updated each time tokens are redeemed and claimed, reset to the most recent redeem time
+    /// @param cliff is an optional field to add a single cliff date prior to which the tokens cannot be redeemed, this does not change
+    /// @param rate is the amount of tokens that unlock in a period. This parameter is constand for each plan.
+    /// @param period is the length of time in between each discrete time when tokens unlock. If this is set to 1, then tokens unlocke every second. Otherwise the period is longer to allow for interval lockup plans.
+    struct Plan {
+        address token;
+        uint256 amount;
+        uint256 start;
+        uint256 cliff;
+        uint256 rate;
+        uint256 period;
+    }
 
-  /// @dev a mapping of the planId to the Plan struct. This is also mapped of the NFT token ID to the Plan struct, as the planId is the NFT token Id. 
-  mapping(uint256 => Plan) public plans;
+    /// @dev a mapping of the planId to the Plan struct. This is also mapped of the NFT token ID to the Plan struct, as the planId is the NFT token Id.
+    mapping(uint256 => Plan) public plans;
 
-  /// @dev this stores the original end date of a plan. This is only used when a token is segmented, which sometimes results in a new end that is longer than the original, 
-  /// the original end date is stored for the case of recombining those plans. 
-  mapping(uint256 => uint256) public segmentOriginalEnd;
+    /// @dev this stores the original end date of a plan. This is only used when a token is segmented, which sometimes results in a new end that is longer than the original,
+    /// the original end date is stored for the case of recombining those plans.
+    mapping(uint256 => uint256) public segmentOriginalEnd;
 
-  ///@notice event emitted when a new lockup plan is created, emits the NFT and planId, as well as all of the info from the plan struct
-  event PlanCreated(
-    uint256 indexed id,
-    address indexed recipient,
-    address indexed token,
-    uint256 amount,
-    uint256 start,
-    uint256 cliff,
-    uint256 end,
-    uint256 rate,
-    uint256 period
-  );
-
-  /// @notice event emitted when a beneficiary redeems some or all of the tokens in their plan. 
-  /// It emits the id of the plan, as well as the amount redeemed, any remaining unvested or unclaimed tokens and the date that was the effective new start date, the reset date
-  event PlanRedeemed(uint256 indexed id, uint256 amountRedeemed, uint256 planRemainder, uint256 resetDate);
-
-  /// @notice this event is emitted when a plan owner segments a plan into a new plan. The event spits out all of the details that have changed for the original plan and the new segmented plan
-  event PlanSegmented(
-    uint256 indexed id,
-    uint256 indexed segmentId,
-    uint256 newPlanAmount,
-    uint256 newPlanRate,
-    uint256 segmentAmount,
-    uint256 segmentRate,
-    uint256 start,
-    uint256 cliff,
-    uint256 period,
-    uint256 newPlanEnd,
-    uint256 segmentEnd
-  );
-
-  /// @notice this event is emitted when two plans with the same parameters are combined, it emits the two combined plans ids, the surviving plan id, and the details of the surviving plan
-  event PlansCombined(
-    uint256 indexed id0,
-    uint256 indexed id1,
-    uint256 indexed survivingId,
-    uint256 amount,
-    uint256 rate,
-    uint256 start,
-    uint256 cliff,
-    uint256 period,
-    uint256 end
-  );
-
-  /// @notice public function to get the balance of a plan, this function is used by the contracts to calculate how much can be redeemed, and how to reset the start date
-  /// @param planId is the NFT token ID and plan Id
-  /// @param timeStamp is the effective current time stamp, can be polled for the future for estimating redeemable tokens
-  /// @param redemptionTime is the time of the request that the user is attemptint to redeem tokens, which can be prior to the timeStamp, though not beyond it.
-  function planBalanceOf(
-    uint256 planId,
-    uint256 timeStamp,
-    uint256 redemptionTime
-  ) public view returns (uint256 balance, uint256 remainder, uint256 latestUnlock) {
-    Plan memory plan = plans[planId];
-    (balance, remainder, latestUnlock) = TimelockLibrary.balanceAtTime(
-      plan.start,
-      plan.cliff,
-      plan.amount,
-      plan.rate,
-      plan.period,
-      timeStamp,
-      redemptionTime
+    ///@notice event emitted when a new lockup plan is created, emits the NFT and planId, as well as all of the info from the plan struct
+    event PlanCreated(
+        uint256 indexed id,
+        address indexed recipient,
+        address indexed token,
+        uint256 amount,
+        uint256 start,
+        uint256 cliff,
+        uint256 end,
+        uint256 rate,
+        uint256 period
     );
-  }
 
-  /// @dev function to calculate the end date in seconds of a given vesting plan
-  /// @param planId is the NFT token ID
-  function planEnd(uint256 planId) external view returns (uint256 end) {
-    Plan memory plan = plans[planId];
-    end = TimelockLibrary.endDate(plan.start, plan.amount, plan.rate, plan.period);
-  }
+    /// @notice event emitted when a beneficiary redeems some or all of the tokens in their plan.
+    /// It emits the id of the plan, as well as the amount redeemed, any remaining unvested or unclaimed tokens and the date that was the effective new start date, the reset date
+    event PlanRedeemed(
+        uint256 indexed id,
+        uint256 amountRedeemed,
+        uint256 planRemainder,
+        uint256 resetDate
+    );
+
+    /// @notice this event is emitted when a plan owner segments a plan into a new plan. The event spits out all of the details that have changed for the original plan and the new segmented plan
+    event PlanSegmented(
+        uint256 indexed id,
+        uint256 indexed segmentId,
+        uint256 newPlanAmount,
+        uint256 newPlanRate,
+        uint256 segmentAmount,
+        uint256 segmentRate,
+        uint256 start,
+        uint256 cliff,
+        uint256 period,
+        uint256 newPlanEnd,
+        uint256 segmentEnd
+    );
+
+    /// @notice this event is emitted when two plans with the same parameters are combined, it emits the two combined plans ids, the surviving plan id, and the details of the surviving plan
+    event PlansCombined(
+        uint256 indexed id0,
+        uint256 indexed id1,
+        uint256 indexed survivingId,
+        uint256 amount,
+        uint256 rate,
+        uint256 start,
+        uint256 cliff,
+        uint256 period,
+        uint256 end
+    );
+
+    /// @notice public function to get the balance of a plan, this function is used by the contracts to calculate how much can be redeemed, and how to reset the start date
+    /// @param planId is the NFT token ID and plan Id
+    /// @param timeStamp is the effective current time stamp, can be polled for the future for estimating redeemable tokens
+    /// @param redemptionTime is the time of the request that the user is attemptint to redeem tokens, which can be prior to the timeStamp, though not beyond it.
+    function planBalanceOf(
+        uint256 planId,
+        uint256 timeStamp,
+        uint256 redemptionTime
+    )
+        public
+        view
+        returns (uint256 balance, uint256 remainder, uint256 latestUnlock)
+    {
+        Plan memory plan = plans[planId];
+        (balance, remainder, latestUnlock) = TimelockLibrary.balanceAtTime(
+            plan.start,
+            plan.cliff,
+            plan.amount,
+            plan.rate,
+            plan.period,
+            timeStamp,
+            redemptionTime
+        );
+    }
+
+    /// @dev function to calculate the end date in seconds of a given vesting plan
+    /// @param planId is the NFT token ID
+    function planEnd(uint256 planId) external view returns (uint256 end) {
+        Plan memory plan = plans[planId];
+        end = TimelockLibrary.endDate(
+            plan.start,
+            plan.amount,
+            plan.rate,
+            plan.period
+        );
+    }
 }
 
 // lib/UniswapV2PeripheryFoundryFriendly/src/interfaces/IUniswapV2Router02.sol
@@ -2287,6 +2625,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
         address to,
         uint deadline
     ) external returns (uint amountETH);
+
     function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
         address token,
         uint liquidity,
@@ -2294,7 +2633,10 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
         uint amountETHMin,
         address to,
         uint deadline,
-        bool approveMax, uint8 v, bytes32 r, bytes32 s
+        bool approveMax,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
     ) external returns (uint amountETH);
 
     function swapExactTokensForTokensSupportingFeeOnTransferTokens(
@@ -2304,12 +2646,14 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
         address to,
         uint deadline
     ) external;
+
     function swapExactETHForTokensSupportingFeeOnTransferTokens(
         uint amountOutMin,
         address[] calldata path,
         address to,
         uint deadline
     ) external payable;
+
     function swapExactTokensForETHSupportingFeeOnTransferTokens(
         uint amountIn,
         uint amountOutMin,
@@ -2348,7 +2692,10 @@ abstract contract Ownable_0 is Context_1 {
      */
     error OwnableInvalidOwner(address owner);
 
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
 
     /**
      * @dev Initializes the contract setting the address provided by the deployer as the initial owner.
@@ -2420,10 +2767,11 @@ abstract contract Ownable_0 is Context_1 {
 // lib/flax/src/ICoupon.sol
 
 interface ICoupon is IERC20_1 {
-
     // Coupon specific functions
     function setMinter(address minter, bool canMint) external;
+
     function mint(uint256 amount, address recipient) external;
+
     function burn(uint256 amount) external;
 
     // State variables
@@ -2459,7 +2807,10 @@ abstract contract Ownable_1 is Context_2 {
      */
     error OwnableInvalidOwner(address owner);
 
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
 
     /**
      * @dev Initializes the contract setting the address provided by the deployer as the initial owner.
@@ -2546,7 +2897,10 @@ interface IERC721Enumerable is IERC721 {
      * @dev Returns a token ID owned by `owner` at a given `index` of its token list.
      * Use along with {balanceOf} to enumerate all of ``owner``'s tokens.
      */
-    function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256);
+    function tokenOfOwnerByIndex(
+        address owner,
+        uint256 index
+    ) external view returns (uint256);
 
     /**
      * @dev Returns a token ID at a given `index` of all the tokens stored by the contract.
@@ -2620,7 +2974,13 @@ library Strings {
      * @dev Converts a `int256` to its ASCII `string` decimal representation.
      */
     function toString(int256 value) internal pure returns (string memory) {
-        return string(abi.encodePacked(value < 0 ? "-" : "", toString(SignedMath.abs(value))));
+        return
+            string(
+                abi.encodePacked(
+                    value < 0 ? "-" : "",
+                    toString(SignedMath.abs(value))
+                )
+            );
     }
 
     /**
@@ -2635,7 +2995,10 @@ library Strings {
     /**
      * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.
      */
-    function toHexString(uint256 value, uint256 length) internal pure returns (string memory) {
+    function toHexString(
+        uint256 value,
+        uint256 length
+    ) internal pure returns (string memory) {
         bytes memory buffer = new bytes(2 * length + 2);
         buffer[0] = "0";
         buffer[1] = "x";
@@ -2657,7 +3020,10 @@ library Strings {
     /**
      * @dev Returns true if the two strings are equal.
      */
-    function equal(string memory a, string memory b) internal pure returns (bool) {
+    function equal(
+        string memory a,
+        string memory b
+    ) internal pure returns (bool) {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 }
@@ -2683,15 +3049,26 @@ library SafeERC20 {
      * non-reverting calls are assumed to be successful.
      */
     function safeTransfer(IERC20_0 token, address to, uint256 value) internal {
-        _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+        _callOptionalReturn(
+            token,
+            abi.encodeWithSelector(token.transfer.selector, to, value)
+        );
     }
 
     /**
      * @dev Transfer `value` amount of `token` from `from` to `to`, spending the approval given by `from` to the
      * calling contract. If `token` returns no value, non-reverting calls are assumed to be successful.
      */
-    function safeTransferFrom(IERC20_0 token, address from, address to, uint256 value) internal {
-        _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    function safeTransferFrom(
+        IERC20_0 token,
+        address from,
+        address to,
+        uint256 value
+    ) internal {
+        _callOptionalReturn(
+            token,
+            abi.encodeWithSelector(token.transferFrom.selector, from, to, value)
+        );
     }
 
     /**
@@ -2701,7 +3078,11 @@ library SafeERC20 {
      * Whenever possible, use {safeIncreaseAllowance} and
      * {safeDecreaseAllowance} instead.
      */
-    function safeApprove(IERC20_0 token, address spender, uint256 value) internal {
+    function safeApprove(
+        IERC20_0 token,
+        address spender,
+        uint256 value
+    ) internal {
         // safeApprove should only be called when setting an initial allowance,
         // or when resetting it to zero. To increase and decrease it, use
         // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
@@ -2709,27 +3090,55 @@ library SafeERC20 {
             (value == 0) || (token.allowance(address(this), spender) == 0),
             "SafeERC20: approve from non-zero to non-zero allowance"
         );
-        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+        _callOptionalReturn(
+            token,
+            abi.encodeWithSelector(token.approve.selector, spender, value)
+        );
     }
 
     /**
      * @dev Increase the calling contract's allowance toward `spender` by `value`. If `token` returns no value,
      * non-reverting calls are assumed to be successful.
      */
-    function safeIncreaseAllowance(IERC20_0 token, address spender, uint256 value) internal {
+    function safeIncreaseAllowance(
+        IERC20_0 token,
+        address spender,
+        uint256 value
+    ) internal {
         uint256 oldAllowance = token.allowance(address(this), spender);
-        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, oldAllowance + value));
+        _callOptionalReturn(
+            token,
+            abi.encodeWithSelector(
+                token.approve.selector,
+                spender,
+                oldAllowance + value
+            )
+        );
     }
 
     /**
      * @dev Decrease the calling contract's allowance toward `spender` by `value`. If `token` returns no value,
      * non-reverting calls are assumed to be successful.
      */
-    function safeDecreaseAllowance(IERC20_0 token, address spender, uint256 value) internal {
+    function safeDecreaseAllowance(
+        IERC20_0 token,
+        address spender,
+        uint256 value
+    ) internal {
         unchecked {
             uint256 oldAllowance = token.allowance(address(this), spender);
-            require(oldAllowance >= value, "SafeERC20: decreased allowance below zero");
-            _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, oldAllowance - value));
+            require(
+                oldAllowance >= value,
+                "SafeERC20: decreased allowance below zero"
+            );
+            _callOptionalReturn(
+                token,
+                abi.encodeWithSelector(
+                    token.approve.selector,
+                    spender,
+                    oldAllowance - value
+                )
+            );
         }
     }
 
@@ -2738,11 +3147,22 @@ library SafeERC20 {
      * non-reverting calls are assumed to be successful. Meant to be used with tokens that require the approval
      * to be set to zero before setting it to a non-zero value, such as USDT.
      */
-    function forceApprove(IERC20_0 token, address spender, uint256 value) internal {
-        bytes memory approvalCall = abi.encodeWithSelector(token.approve.selector, spender, value);
+    function forceApprove(
+        IERC20_0 token,
+        address spender,
+        uint256 value
+    ) internal {
+        bytes memory approvalCall = abi.encodeWithSelector(
+            token.approve.selector,
+            spender,
+            value
+        );
 
         if (!_callOptionalReturnBool(token, approvalCall)) {
-            _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, 0));
+            _callOptionalReturn(
+                token,
+                abi.encodeWithSelector(token.approve.selector, spender, 0)
+            );
             _callOptionalReturn(token, approvalCall);
         }
     }
@@ -2764,7 +3184,10 @@ library SafeERC20 {
         uint256 nonceBefore = token.nonces(owner);
         token.permit(owner, spender, value, deadline, v, r, s);
         uint256 nonceAfter = token.nonces(owner);
-        require(nonceAfter == nonceBefore + 1, "SafeERC20: permit did not succeed");
+        require(
+            nonceAfter == nonceBefore + 1,
+            "SafeERC20: permit did not succeed"
+        );
     }
 
     /**
@@ -2778,8 +3201,14 @@ library SafeERC20 {
         // we're implementing it ourselves. We use {Address-functionCall} to perform this call, which verifies that
         // the target address contains contract code and also asserts for success in the low-level call.
 
-        bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
-        require(returndata.length == 0 || abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+        bytes memory returndata = address(token).functionCall(
+            data,
+            "SafeERC20: low-level call failed"
+        );
+        require(
+            returndata.length == 0 || abi.decode(returndata, (bool)),
+            "SafeERC20: ERC20 operation did not succeed"
+        );
     }
 
     /**
@@ -2790,14 +3219,19 @@ library SafeERC20 {
      *
      * This is a variant of {_callOptionalReturn} that silents catches all reverts and returns a bool instead.
      */
-    function _callOptionalReturnBool(IERC20_0 token, bytes memory data) private returns (bool) {
+    function _callOptionalReturnBool(
+        IERC20_0 token,
+        bytes memory data
+    ) private returns (bool) {
         // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
         // we're implementing it ourselves. We cannot use {Address-functionCall} here since this should return false
         // and not revert is the subcall reverts.
 
         (bool success, bytes memory returndata) = address(token).call(data);
         return
-            success && (returndata.length == 0 || abi.decode(returndata, (bool))) && Address.isContract(address(token));
+            success &&
+            (returndata.length == 0 || abi.decode(returndata, (bool))) &&
+            Address.isContract(address(token));
     }
 }
 
@@ -2819,7 +3253,8 @@ library FixedPoint {
 
     uint8 public constant RESOLUTION = 112;
     uint256 public constant Q112 = 0x10000000000000000000000000000; // 2**112
-    uint256 private constant Q224 = 0x100000000000000000000000000000000000000000000000000000000; // 2**224
+    uint256 private constant Q224 =
+        0x100000000000000000000000000000000000000000000000000000000; // 2**224
     uint256 private constant LOWER_MASK = 0xffffffffffffffffffffffffffff; // decimal of UQ*x112 (lower 112 bits)
 
     // encode a uint112 as a UQ112x112
@@ -2844,23 +3279,35 @@ library FixedPoint {
 
     // multiply a UQ112x112 by a uint, returning a UQ144x112
     // reverts on overflow
-    function mul(uq112x112 memory self, uint256 y) internal pure returns (uq144x112 memory) {
+    function mul(
+        uq112x112 memory self,
+        uint256 y
+    ) internal pure returns (uq144x112 memory) {
         uint256 z = 0;
-        require(y == 0 || (z = self._x * y) / y == self._x, 'FixedPoint::mul: overflow');
+        require(
+            y == 0 || (z = self._x * y) / y == self._x,
+            "FixedPoint::mul: overflow"
+        );
         return uq144x112(z);
     }
 
     // multiply a UQ112x112 by an int and decode, returning an int
     // reverts on overflow
-    function muli(uq112x112 memory self, int256 y) internal pure returns (int256) {
+    function muli(
+        uq112x112 memory self,
+        int256 y
+    ) internal pure returns (int256) {
         uint256 z = FullMath.mulDiv(self._x, uint256(y < 0 ? -y : y), Q112);
-        require(z < 2**255, 'FixedPoint::muli: overflow');
+        require(z < 2 ** 255, "FixedPoint::muli: overflow");
         return y < 0 ? -int256(z) : int256(z);
     }
 
     // multiply a UQ112x112 by a UQ112x112, returning a UQ112x112
     // lossy
-    function muluq(uq112x112 memory self, uq112x112 memory other) internal pure returns (uq112x112 memory) {
+    function muluq(
+        uq112x112 memory self,
+        uq112x112 memory other
+    ) internal pure returns (uq112x112 memory) {
         if (self._x == 0 || other._x == 0) {
             return uq112x112(0);
         }
@@ -2876,47 +3323,65 @@ library FixedPoint {
         uint224 uppero_lowers = uint224(upper_other) * lower_self; // * 2^-112
 
         // so the bit shift does not overflow
-        require(upper <= type(uint112).max, 'FixedPoint::muluq: upper overflow');
+        require(
+            upper <= type(uint112).max,
+            "FixedPoint::muluq: upper overflow"
+        );
 
         // this cannot exceed 256 bits, all values are 224 bits
-        uint256 sum = uint256(upper << RESOLUTION) + uppers_lowero + uppero_lowers + (lower >> RESOLUTION);
+        uint256 sum = uint256(upper << RESOLUTION) +
+            uppers_lowero +
+            uppero_lowers +
+            (lower >> RESOLUTION);
 
         // so the cast does not overflow
-        require(sum <= type(uint224).max, 'FixedPoint::muluq: sum overflow');
+        require(sum <= type(uint224).max, "FixedPoint::muluq: sum overflow");
 
         return uq112x112(uint224(sum));
     }
 
     // divide a UQ112x112 by a UQ112x112, returning a UQ112x112
-    function divuq(uq112x112 memory self, uq112x112 memory other) internal pure returns (uq112x112 memory) {
-        require(other._x > 0, 'FixedPoint::divuq: division by zero');
+    function divuq(
+        uq112x112 memory self,
+        uq112x112 memory other
+    ) internal pure returns (uq112x112 memory) {
+        require(other._x > 0, "FixedPoint::divuq: division by zero");
         if (self._x == other._x) {
             return uq112x112(uint224(Q112));
         }
         if (self._x <= type(uint144).max) {
             uint256 value = (uint256(self._x) << RESOLUTION) / other._x;
-            require(value <= type(uint224).max, 'FixedPoint::divuq: overflow');
+            require(value <= type(uint224).max, "FixedPoint::divuq: overflow");
             return uq112x112(uint224(value));
         }
 
         uint256 result = FullMath.mulDiv(Q112, self._x, other._x);
-        require(result <= type(uint224).max, 'FixedPoint::divuq: overflow');
+        require(result <= type(uint224).max, "FixedPoint::divuq: overflow");
         return uq112x112(uint224(result));
     }
 
     // returns a UQ112x112 which represents the ratio of the numerator to the denominator
     // can be lossy
-    function fraction(uint256 numerator, uint256 denominator) internal pure returns (uq112x112 memory) {
-        require(denominator > 0, 'FixedPoint::fraction: division by zero');
+    function fraction(
+        uint256 numerator,
+        uint256 denominator
+    ) internal pure returns (uq112x112 memory) {
+        require(denominator > 0, "FixedPoint::fraction: division by zero");
         if (numerator == 0) return FixedPoint.uq112x112(0);
 
         if (numerator <= type(uint144).max) {
             uint256 result = (numerator << RESOLUTION) / denominator;
-            require(result <= type(uint224).max, 'FixedPoint::fraction: overflow');
+            require(
+                result <= type(uint224).max,
+                "FixedPoint::fraction: overflow"
+            );
             return uq112x112(uint224(result));
         } else {
             uint256 result = FullMath.mulDiv(numerator, Q112, denominator);
-            require(result <= type(uint224).max, 'FixedPoint::fraction: overflow');
+            require(
+                result <= type(uint224).max,
+                "FixedPoint::fraction: overflow"
+            );
             return uq112x112(uint224(result));
         }
     }
@@ -2924,22 +3389,32 @@ library FixedPoint {
     // take the reciprocal of a UQ112x112
     // reverts on overflow
     // lossy
-    function reciprocal(uq112x112 memory self) internal pure returns (uq112x112 memory) {
-        require(self._x != 0, 'FixedPoint::reciprocal: reciprocal of zero');
-        require(self._x != 1, 'FixedPoint::reciprocal: overflow');
+    function reciprocal(
+        uq112x112 memory self
+    ) internal pure returns (uq112x112 memory) {
+        require(self._x != 0, "FixedPoint::reciprocal: reciprocal of zero");
+        require(self._x != 1, "FixedPoint::reciprocal: overflow");
         return uq112x112(uint224(Q224 / self._x));
     }
 
     // square root of a UQ112x112
     // lossy between 0/1 and 40 bits
-    function sqrt(uq112x112 memory self) internal pure returns (uq112x112 memory) {
+    function sqrt(
+        uq112x112 memory self
+    ) internal pure returns (uq112x112 memory) {
         if (self._x <= type(uint144).max) {
             return uq112x112(uint224(Babylonian.sqrt(uint256(self._x) << 112)));
         }
 
         uint8 safeShiftBits = 255 - BitMath.mostSignificantBit(self._x);
         safeShiftBits -= safeShiftBits % 2;
-        return uq112x112(uint224(Babylonian.sqrt(uint256(self._x) << safeShiftBits) << ((112 - safeShiftBits) / 2)));
+        return
+            uq112x112(
+                uint224(
+                    Babylonian.sqrt(uint256(self._x) << safeShiftBits) <<
+                        ((112 - safeShiftBits) / 2)
+                )
+            );
     }
 }
 
@@ -3075,43 +3550,42 @@ library UniswapV2Library {
 
 /// @notice Library to help safely transfer tokens and handle ETH wrapping and unwrapping of WETH
 library TransferHelper {
-  using SafeERC20 for IERC20;
+    using SafeERC20 for IERC20;
 
-  /// @notice Internal function used for standard ERC20 transferFrom method
-  /// @notice it contains a pre and post balance check
-  /// @notice as well as a check on the msg.senders balance
-  /// @param token is the address of the ERC20 being transferred
-  /// @param from is the remitting address
-  /// @param to is the location where they are being delivered
-  function transferTokens(
-    address token,
-    address from,
-    address to,
-    uint256 amount
-  ) internal {
-    uint256 priorBalance = IERC20(token).balanceOf(address(to));
-    require(IERC20(token).balanceOf(from) >= amount, 'THL01');
-    SafeERC20.safeTransferFrom(IERC20(token), from, to, amount);
-    uint256 postBalance = IERC20(token).balanceOf(address(to));
-    require(postBalance - priorBalance == amount, 'THL02');
-  }
+    /// @notice Internal function used for standard ERC20 transferFrom method
+    /// @notice it contains a pre and post balance check
+    /// @notice as well as a check on the msg.senders balance
+    /// @param token is the address of the ERC20 being transferred
+    /// @param from is the remitting address
+    /// @param to is the location where they are being delivered
+    function transferTokens(
+        address token,
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        uint256 priorBalance = IERC20(token).balanceOf(address(to));
+        require(IERC20(token).balanceOf(from) >= amount, "THL01");
+        SafeERC20.safeTransferFrom(IERC20(token), from, to, amount);
+        uint256 postBalance = IERC20(token).balanceOf(address(to));
+        require(postBalance - priorBalance == amount, "THL02");
+    }
 
-  /// @notice Internal function is used with standard ERC20 transfer method
-  /// @notice this function ensures that the amount received is the amount sent with pre and post balance checking
-  /// @param token is the ERC20 contract address that is being transferred
-  /// @param to is the address of the recipient
-  /// @param amount is the amount of tokens that are being transferred
-  function withdrawTokens(
-    address token,
-    address to,
-    uint256 amount
-  ) internal {
-    uint256 priorBalance = IERC20(token).balanceOf(address(to));
-    SafeERC20.safeTransfer(IERC20(token), to, amount);
-    uint256 postBalance = IERC20(token).balanceOf(address(to));
-    require(postBalance - priorBalance == amount, 'THL02');
-  }
-
+    /// @notice Internal function is used with standard ERC20 transfer method
+    /// @notice this function ensures that the amount received is the amount sent with pre and post balance checking
+    /// @param token is the ERC20 contract address that is being transferred
+    /// @param to is the address of the recipient
+    /// @param amount is the amount of tokens that are being transferred
+    function withdrawTokens(
+        address token,
+        address to,
+        uint256 amount
+    ) internal {
+        uint256 priorBalance = IERC20(token).balanceOf(address(to));
+        SafeERC20.safeTransfer(IERC20(token), to, amount);
+        uint256 postBalance = IERC20(token).balanceOf(address(to));
+        require(postBalance - priorBalance == amount, "THL02");
+    }
 }
 
 // lib/UniswapV2PeripheryFoundryFriendly/src/libraries/UniswapV2OracleLibrary.sol
@@ -3128,21 +3602,37 @@ library UniswapV2OracleLibrary {
     // produces the cumulative price using counterfactuals to save gas and avoid a call to sync.
     function currentCumulativePrices(
         address pair
-    ) internal view returns (uint price0Cumulative, uint price1Cumulative, uint32 blockTimestamp) {
+    )
+        internal
+        view
+        returns (
+            uint price0Cumulative,
+            uint price1Cumulative,
+            uint32 blockTimestamp
+        )
+    {
         blockTimestamp = currentBlockTimestamp();
         price0Cumulative = IUniswapV2Pair(pair).price0CumulativeLast();
         price1Cumulative = IUniswapV2Pair(pair).price1CumulativeLast();
 
         // if time has elapsed since the last update on the pair, mock the accumulated price values
-        (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast) = IUniswapV2Pair(pair).getReserves();
+        (
+            uint112 reserve0,
+            uint112 reserve1,
+            uint32 blockTimestampLast
+        ) = IUniswapV2Pair(pair).getReserves();
         if (blockTimestampLast != blockTimestamp) {
             // subtraction overflow is desired
             uint32 timeElapsed = blockTimestamp - blockTimestampLast;
             // addition overflow is desired
             // counterfactual
-            price0Cumulative += uint(FixedPoint.fraction(reserve1, reserve0)._x) * timeElapsed;
+            price0Cumulative +=
+                uint(FixedPoint.fraction(reserve1, reserve0)._x) *
+                timeElapsed;
             // counterfactual
-            price1Cumulative += uint(FixedPoint.fraction(reserve0, reserve1)._x) * timeElapsed;
+            price1Cumulative +=
+                uint(FixedPoint.fraction(reserve0, reserve1)._x) *
+                timeElapsed;
         }
     }
 }
@@ -3189,7 +3679,9 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override(ERC165, IERC165) returns (bool) {
         return
             interfaceId == type(IERC721).interfaceId ||
             interfaceId == type(IERC721Metadata).interfaceId ||
@@ -3199,15 +3691,22 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
     /**
      * @dev See {IERC721-balanceOf}.
      */
-    function balanceOf(address owner) public view virtual override returns (uint256) {
-        require(owner != address(0), "ERC721: address zero is not a valid owner");
+    function balanceOf(
+        address owner
+    ) public view virtual override returns (uint256) {
+        require(
+            owner != address(0),
+            "ERC721: address zero is not a valid owner"
+        );
         return _balances[owner];
     }
 
     /**
      * @dev See {IERC721-ownerOf}.
      */
-    function ownerOf(uint256 tokenId) public view virtual override returns (address) {
+    function ownerOf(
+        uint256 tokenId
+    ) public view virtual override returns (address) {
         address owner = _ownerOf(tokenId);
         require(owner != address(0), "ERC721: invalid token ID");
         return owner;
@@ -3230,11 +3729,16 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
     /**
      * @dev See {IERC721Metadata-tokenURI}.
      */
-    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+    function tokenURI(
+        uint256 tokenId
+    ) public view virtual override returns (string memory) {
         _requireMinted(tokenId);
 
         string memory baseURI = _baseURI();
-        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
+        return
+            bytes(baseURI).length > 0
+                ? string(abi.encodePacked(baseURI, tokenId.toString()))
+                : "";
     }
 
     /**
@@ -3264,7 +3768,9 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
     /**
      * @dev See {IERC721-getApproved}.
      */
-    function getApproved(uint256 tokenId) public view virtual override returns (address) {
+    function getApproved(
+        uint256 tokenId
+    ) public view virtual override returns (address) {
         _requireMinted(tokenId);
 
         return _tokenApprovals[tokenId];
@@ -3273,23 +3779,36 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
     /**
      * @dev See {IERC721-setApprovalForAll}.
      */
-    function setApprovalForAll(address operator, bool approved) public virtual override {
+    function setApprovalForAll(
+        address operator,
+        bool approved
+    ) public virtual override {
         _setApprovalForAll(_msgSender(), operator, approved);
     }
 
     /**
      * @dev See {IERC721-isApprovedForAll}.
      */
-    function isApprovedForAll(address owner, address operator) public view virtual override returns (bool) {
+    function isApprovedForAll(
+        address owner,
+        address operator
+    ) public view virtual override returns (bool) {
         return _operatorApprovals[owner][operator];
     }
 
     /**
      * @dev See {IERC721-transferFrom}.
      */
-    function transferFrom(address from, address to, uint256 tokenId) public virtual override {
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public virtual override {
         //solhint-disable-next-line max-line-length
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
+        require(
+            _isApprovedOrOwner(_msgSender(), tokenId),
+            "ERC721: caller is not token owner or approved"
+        );
 
         _transfer(from, to, tokenId);
     }
@@ -3297,15 +3816,27 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
     /**
      * @dev See {IERC721-safeTransferFrom}.
      */
-    function safeTransferFrom(address from, address to, uint256 tokenId) public virtual override {
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public virtual override {
         safeTransferFrom(from, to, tokenId, "");
     }
 
     /**
      * @dev See {IERC721-safeTransferFrom}.
      */
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory data
+    ) public virtual override {
+        require(
+            _isApprovedOrOwner(_msgSender(), tokenId),
+            "ERC721: caller is not token owner or approved"
+        );
         _safeTransfer(from, to, tokenId, data);
     }
 
@@ -3327,9 +3858,17 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
      *
      * Emits a {Transfer} event.
      */
-    function _safeTransfer(address from, address to, uint256 tokenId, bytes memory data) internal virtual {
+    function _safeTransfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory data
+    ) internal virtual {
         _transfer(from, to, tokenId);
-        require(_checkOnERC721Received(from, to, tokenId, data), "ERC721: transfer to non ERC721Receiver implementer");
+        require(
+            _checkOnERC721Received(from, to, tokenId, data),
+            "ERC721: transfer to non ERC721Receiver implementer"
+        );
     }
 
     /**
@@ -3358,9 +3897,14 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
      *
      * - `tokenId` must exist.
      */
-    function _isApprovedOrOwner(address spender, uint256 tokenId) internal view virtual returns (bool) {
+    function _isApprovedOrOwner(
+        address spender,
+        uint256 tokenId
+    ) internal view virtual returns (bool) {
         address owner = ERC721.ownerOf(tokenId);
-        return (spender == owner || isApprovedForAll(owner, spender) || getApproved(tokenId) == spender);
+        return (spender == owner ||
+            isApprovedForAll(owner, spender) ||
+            getApproved(tokenId) == spender);
     }
 
     /**
@@ -3381,7 +3925,11 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
      * @dev Same as {xref-ERC721-_safeMint-address-uint256-}[`_safeMint`], with an additional `data` parameter which is
      * forwarded in {IERC721Receiver-onERC721Received} to contract recipients.
      */
-    function _safeMint(address to, uint256 tokenId, bytes memory data) internal virtual {
+    function _safeMint(
+        address to,
+        uint256 tokenId,
+        bytes memory data
+    ) internal virtual {
         _mint(to, tokenId);
         require(
             _checkOnERC721Received(address(0), to, tokenId, data),
@@ -3470,14 +4018,24 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
      *
      * Emits a {Transfer} event.
      */
-    function _transfer(address from, address to, uint256 tokenId) internal virtual {
-        require(ERC721.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
+    function _transfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal virtual {
+        require(
+            ERC721.ownerOf(tokenId) == from,
+            "ERC721: transfer from incorrect owner"
+        );
         require(to != address(0), "ERC721: transfer to the zero address");
 
         _beforeTokenTransfer(from, to, tokenId, 1);
 
         // Check that tokenId was not transferred by `_beforeTokenTransfer` hook
-        require(ERC721.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
+        require(
+            ERC721.ownerOf(tokenId) == from,
+            "ERC721: transfer from incorrect owner"
+        );
 
         // Clear approvals from the previous owner
         delete _tokenApprovals[tokenId];
@@ -3513,7 +4071,11 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
      *
      * Emits an {ApprovalForAll} event.
      */
-    function _setApprovalForAll(address owner, address operator, bool approved) internal virtual {
+    function _setApprovalForAll(
+        address owner,
+        address operator,
+        bool approved
+    ) internal virtual {
         require(owner != operator, "ERC721: approve to caller");
         _operatorApprovals[owner][operator] = approved;
         emit ApprovalForAll(owner, operator, approved);
@@ -3543,11 +4105,20 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
         bytes memory data
     ) private returns (bool) {
         if (to.isContract()) {
-            try IERC721Receiver(to).onERC721Received(_msgSender(), from, tokenId, data) returns (bytes4 retval) {
+            try
+                IERC721Receiver(to).onERC721Received(
+                    _msgSender(),
+                    from,
+                    tokenId,
+                    data
+                )
+            returns (bytes4 retval) {
                 return retval == IERC721Receiver.onERC721Received.selector;
             } catch (bytes memory reason) {
                 if (reason.length == 0) {
-                    revert("ERC721: transfer to non ERC721Receiver implementer");
+                    revert(
+                        "ERC721: transfer to non ERC721Receiver implementer"
+                    );
                 } else {
                     /// @solidity memory-safe-assembly
                     assembly {
@@ -3574,7 +4145,12 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
      *
      * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
      */
-    function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize) internal virtual {}
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 firstTokenId,
+        uint256 batchSize
+    ) internal virtual {}
 
     /**
      * @dev Hook that is called after any token transfer. This includes minting and burning. If {ERC721Consecutive} is
@@ -3590,7 +4166,12 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
      *
      * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
      */
-    function _afterTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize) internal virtual {}
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256 firstTokenId,
+        uint256 batchSize
+    ) internal virtual {}
 
     /**
      * @dev Unsafe write access to the balances, used by extensions that "mint" tokens using an {ownerOf} override.
@@ -3600,7 +4181,10 @@ contract ERC721 is Context_0, ERC165, IERC721, IERC721Metadata {
      * that `ownerOf(tokenId)` is `a`.
      */
     // solhint-disable-next-line func-name-mixedcase
-    function __unsafe_increaseBalance(address account, uint256 amount) internal {
+    function __unsafe_increaseBalance(
+        address account,
+        uint256 amount
+    ) internal {
         _balances[account] += amount;
     }
 }
@@ -3893,15 +4477,25 @@ abstract contract ERC721Enumerable is ERC721, IERC721Enumerable {
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(IERC165, ERC721) returns (bool) {
-        return interfaceId == type(IERC721Enumerable).interfaceId || super.supportsInterface(interfaceId);
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override(IERC165, ERC721) returns (bool) {
+        return
+            interfaceId == type(IERC721Enumerable).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     /**
      * @dev See {IERC721Enumerable-tokenOfOwnerByIndex}.
      */
-    function tokenOfOwnerByIndex(address owner, uint256 index) public view virtual override returns (uint256) {
-        require(index < ERC721.balanceOf(owner), "ERC721Enumerable: owner index out of bounds");
+    function tokenOfOwnerByIndex(
+        address owner,
+        uint256 index
+    ) public view virtual override returns (uint256) {
+        require(
+            index < ERC721.balanceOf(owner),
+            "ERC721Enumerable: owner index out of bounds"
+        );
         return _ownedTokens[owner][index];
     }
 
@@ -3915,8 +4509,13 @@ abstract contract ERC721Enumerable is ERC721, IERC721Enumerable {
     /**
      * @dev See {IERC721Enumerable-tokenByIndex}.
      */
-    function tokenByIndex(uint256 index) public view virtual override returns (uint256) {
-        require(index < ERC721Enumerable.totalSupply(), "ERC721Enumerable: global index out of bounds");
+    function tokenByIndex(
+        uint256 index
+    ) public view virtual override returns (uint256) {
+        require(
+            index < ERC721Enumerable.totalSupply(),
+            "ERC721Enumerable: global index out of bounds"
+        );
         return _allTokens[index];
     }
 
@@ -3978,7 +4577,10 @@ abstract contract ERC721Enumerable is ERC721, IERC721Enumerable {
      * @param from address representing the previous owner of the given token ID
      * @param tokenId uint256 ID of the token to be removed from the tokens list of the given address
      */
-    function _removeTokenFromOwnerEnumeration(address from, uint256 tokenId) private {
+    function _removeTokenFromOwnerEnumeration(
+        address from,
+        uint256 tokenId
+    ) private {
         // To prevent a gap in from's tokens array, we store the last token in the index of the token to delete, and
         // then delete the last slot (swap and pop).
 
@@ -4027,101 +4629,143 @@ abstract contract ERC721Enumerable is ERC721, IERC721Enumerable {
 // lib/Locked_VestingTokenPlans/contracts/sharedContracts/PlanDelegator.sol
 
 abstract contract PlanDelegator is ERC721Enumerable {
-  // mapping of tokenId to address who can delegate an NFT on behalf of the owner
-  /// @dev follows tokenApprovals logic
-  mapping(uint256 => address) private _approvedDelegators;
+    // mapping of tokenId to address who can delegate an NFT on behalf of the owner
+    /// @dev follows tokenApprovals logic
+    mapping(uint256 => address) private _approvedDelegators;
 
-  /// @dev operatorApprovals simialr to ERC721 standards
-  mapping(address => mapping(address => bool)) private _approvedOperatorDelegators;
+    /// @dev operatorApprovals simialr to ERC721 standards
+    mapping(address => mapping(address => bool))
+        private _approvedOperatorDelegators;
 
-  /// @dev event that is emitted when a single plan delegator has been approved
-  event DelegatorApproved(uint256 indexed id, address owner, address delegator);
-
-  /// @dev event emit when the operator delegator has been approved to manage all delegation of a single address
-  event ApprovalForAllDelegation(address owner, address operator, bool approved);
-
-  /// @notice function to assign a single planId to a delegator. The delegator then has authority to call functions on other contracts such as delegate
-  /// @param delegator is the address of the delegator who can delegate on behalf of the nft owner
-  /// @param planId is the id of the vesting or lockup plan
-  function approveDelegator(address delegator, uint256 planId) public virtual {
-    address owner = ownerOf(planId);
-    require(msg.sender == owner || isApprovedForAllDelegation(owner, msg.sender), '!ownerOperator');
-    require(delegator != msg.sender, '!self approval');
-    _approveDelegator(delegator, planId);
-  }
-
-  /// @notice function that performs both the approveDelegator function and approves a spender
-  /// @param spender is the address who is approved to spend and is also a Delegator
-  /// @param planId is the vesting plan id
-  function approveSpenderDelegator(address spender, uint256 planId) public virtual {
-    address owner = ownerOf(planId);
-    require(
-      msg.sender == owner || (isApprovedForAllDelegation(owner, msg.sender) && isApprovedForAll(owner, msg.sender)),
-      '!ownerOperator'
+    /// @dev event that is emitted when a single plan delegator has been approved
+    event DelegatorApproved(
+        uint256 indexed id,
+        address owner,
+        address delegator
     );
-    require(spender != msg.sender, '!self approval');
-    _approveDelegator(spender, planId);
-    _approve(spender, planId);
-  }
 
-  /// @notice this function sets an address to be an operator delegator for the msg.sender, whereby the operator can delegate all tokens owned by the msg.sender
-  /// the operator can also approve other single plan delegators
-  /// @param operator address of the operator for the msg.sender
-  /// @param approved boolean for approved if true, and false if not
-  function setApprovalForAllDelegation(address operator, bool approved) public virtual {
-    _setApprovalForAllDelegation(msg.sender, operator, approved);
-  }
+    /// @dev event emit when the operator delegator has been approved to manage all delegation of a single address
+    event ApprovalForAllDelegation(
+        address owner,
+        address operator,
+        bool approved
+    );
 
-  /// @notice functeion to set the approval operator for both delegation and for spending NFTs of the msg.sender
-  /// @param operator is the address who will be allowed to spend and delegate
-  /// @param approved is the bool determining if they are allowed or not
-  function setApprovalForOperator(address operator, bool approved) public virtual {
-    _setApprovalForAllDelegation(msg.sender, operator, approved);
-    _setApprovalForAll(msg.sender, operator, approved);
-  }
+    /// @notice function to assign a single planId to a delegator. The delegator then has authority to call functions on other contracts such as delegate
+    /// @param delegator is the address of the delegator who can delegate on behalf of the nft owner
+    /// @param planId is the id of the vesting or lockup plan
+    function approveDelegator(
+        address delegator,
+        uint256 planId
+    ) public virtual {
+        address owner = ownerOf(planId);
+        require(
+            msg.sender == owner ||
+                isApprovedForAllDelegation(owner, msg.sender),
+            "!ownerOperator"
+        );
+        require(delegator != msg.sender, "!self approval");
+        _approveDelegator(delegator, planId);
+    }
 
-  /// @notice internal function to update the storage of approvedDelegators and emit the event
-  function _approveDelegator(address delegator, uint256 planId) internal virtual {
-    _approvedDelegators[planId] = delegator;
-    emit DelegatorApproved(planId, ownerOf(planId), delegator);
-  }
+    /// @notice function that performs both the approveDelegator function and approves a spender
+    /// @param spender is the address who is approved to spend and is also a Delegator
+    /// @param planId is the vesting plan id
+    function approveSpenderDelegator(
+        address spender,
+        uint256 planId
+    ) public virtual {
+        address owner = ownerOf(planId);
+        require(
+            msg.sender == owner ||
+                (isApprovedForAllDelegation(owner, msg.sender) &&
+                    isApprovedForAll(owner, msg.sender)),
+            "!ownerOperator"
+        );
+        require(spender != msg.sender, "!self approval");
+        _approveDelegator(spender, planId);
+        _approve(spender, planId);
+    }
 
-  /// @notice internal function to update the storage of approvedOperatorDelegators, and emit the event
-  function _setApprovalForAllDelegation(address owner, address operator, bool approved) internal virtual {
-    require(owner != operator, '!operator');
-    _approvedOperatorDelegators[owner][operator] = approved;
-    emit ApprovalForAllDelegation(owner, operator, approved);
-  }
+    /// @notice this function sets an address to be an operator delegator for the msg.sender, whereby the operator can delegate all tokens owned by the msg.sender
+    /// the operator can also approve other single plan delegators
+    /// @param operator address of the operator for the msg.sender
+    /// @param approved boolean for approved if true, and false if not
+    function setApprovalForAllDelegation(
+        address operator,
+        bool approved
+    ) public virtual {
+        _setApprovalForAllDelegation(msg.sender, operator, approved);
+    }
 
-  /// @notice we call the beforeTokenTransfer hook to delete the approvedDelegators storage variable so that the Delegator approval does not travel with the NFT when transferred
-  function _beforeTokenTransfer(
-    address from,
-    address to,
-    uint256 firstTokenId,
-    uint256 batchSize
-  ) internal virtual override {
-    super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
-    delete _approvedDelegators[firstTokenId];
-  }
+    /// @notice functeion to set the approval operator for both delegation and for spending NFTs of the msg.sender
+    /// @param operator is the address who will be allowed to spend and delegate
+    /// @param approved is the bool determining if they are allowed or not
+    function setApprovalForOperator(
+        address operator,
+        bool approved
+    ) public virtual {
+        _setApprovalForAllDelegation(msg.sender, operator, approved);
+        _setApprovalForAll(msg.sender, operator, approved);
+    }
 
-  /// @notice function to get the approved delegator of a single planId
-  function getApprovedDelegator(uint256 planId) public view returns (address) {
-    _requireMinted(planId);
-    return _approvedDelegators[planId];
-  }
+    /// @notice internal function to update the storage of approvedDelegators and emit the event
+    function _approveDelegator(
+        address delegator,
+        uint256 planId
+    ) internal virtual {
+        _approvedDelegators[planId] = delegator;
+        emit DelegatorApproved(planId, ownerOf(planId), delegator);
+    }
 
-  /// @notice function to evaluate if an operator is approved to manage delegations of an owner address
-  function isApprovedForAllDelegation(address owner, address operator) public view returns (bool) {
-    return _approvedOperatorDelegators[owner][operator];
-  }
+    /// @notice internal function to update the storage of approvedOperatorDelegators, and emit the event
+    function _setApprovalForAllDelegation(
+        address owner,
+        address operator,
+        bool approved
+    ) internal virtual {
+        require(owner != operator, "!operator");
+        _approvedOperatorDelegators[owner][operator] = approved;
+        emit ApprovalForAllDelegation(owner, operator, approved);
+    }
 
-  /// @notice internal view function to determine if a delegator, typically the msg.sender is allowed to delegate a token, based on being either the Owner, Delegator or Operator.
-  function _isApprovedDelegatorOrOwner(address delegator, uint256 planId) internal view returns (bool) {
-    address owner = ownerOf(planId);
-    return (delegator == owner ||
-      isApprovedForAllDelegation(owner, delegator) ||
-      getApprovedDelegator(planId) == delegator);
-  }
+    /// @notice we call the beforeTokenTransfer hook to delete the approvedDelegators storage variable so that the Delegator approval does not travel with the NFT when transferred
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 firstTokenId,
+        uint256 batchSize
+    ) internal virtual override {
+        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+        delete _approvedDelegators[firstTokenId];
+    }
+
+    /// @notice function to get the approved delegator of a single planId
+    function getApprovedDelegator(
+        uint256 planId
+    ) public view returns (address) {
+        _requireMinted(planId);
+        return _approvedDelegators[planId];
+    }
+
+    /// @notice function to evaluate if an operator is approved to manage delegations of an owner address
+    function isApprovedForAllDelegation(
+        address owner,
+        address operator
+    ) public view returns (bool) {
+        return _approvedOperatorDelegators[owner][operator];
+    }
+
+    /// @notice internal view function to determine if a delegator, typically the msg.sender is allowed to delegate a token, based on being either the Owner, Delegator or Operator.
+    function _isApprovedDelegatorOrOwner(
+        address delegator,
+        uint256 planId
+    ) internal view returns (bool) {
+        address owner = ownerOf(planId);
+        return (delegator == owner ||
+            isApprovedForAllDelegation(owner, delegator) ||
+            getApprovedDelegator(planId) == delegator);
+    }
 }
 
 // src/ITilter.sol
@@ -4164,86 +4808,94 @@ interface ITilter {
 // lib/Locked_VestingTokenPlans/contracts/ERC721Delegate/ERC721Delegate.sol
 
 abstract contract ERC721Delegate is PlanDelegator {
-  event TokenDelegated(uint256 indexed tokenId, address indexed delegate);
-  event DelegateRemoved(uint256 indexed tokenId, address indexed delegate);
+    event TokenDelegated(uint256 indexed tokenId, address indexed delegate);
+    event DelegateRemoved(uint256 indexed tokenId, address indexed delegate);
 
-  function _delegateToken(address delegate, uint256 tokenId) internal {
-    require(_isApprovedDelegatorOrOwner(msg.sender, tokenId), '!delegator');
-    _transferDelegate(delegate, tokenId);
-  }
-
-  // function for minting should add the token to the delegate and increase the balance
-  function _addDelegate(address to, uint256 tokenId) private {
-    require(to != address(0), '!address(0)');
-    uint256 length = _delegateBalances[to];
-    _delegatedTokens[to][length] = tokenId;
-    _delegatedTokensIndex[tokenId] = length;
-    _delegates[tokenId] = to;
-    _delegateBalances[to] += 1;
-    emit TokenDelegated(tokenId, to);
-  }
-
-  // function for burning should reduce the balances and set the token mapped to 0x0 address
-  function _removeDelegate(uint256 tokenId) private {
-    address from = _delegates[tokenId];
-    require(from != address(0), '!address(0)');
-    uint256 lastTokenIndex = _delegateBalances[from] - 1;
-    uint256 tokenIndex = _delegatedTokensIndex[tokenId];
-    if (tokenIndex != lastTokenIndex) {
-      uint256 lastTokenId = _delegatedTokens[from][lastTokenIndex];
-      _delegatedTokens[from][tokenIndex] = lastTokenId;
-      _delegatedTokensIndex[lastTokenId] = tokenIndex;
+    function _delegateToken(address delegate, uint256 tokenId) internal {
+        require(_isApprovedDelegatorOrOwner(msg.sender, tokenId), "!delegator");
+        _transferDelegate(delegate, tokenId);
     }
-    delete _delegatedTokensIndex[tokenId];
-    delete _delegatedTokens[from][lastTokenIndex];
-    _delegateBalances[from] -= 1;
-    _delegates[tokenId] = address(0);
-    emit DelegateRemoved(tokenId, from);
-  }
 
-  // function for transfering should reduce the balances of from by 1, increase the balances of to by 1, and set the delegate address To
-  function _transferDelegate(address to, uint256 tokenId) internal {
-    _removeDelegate(tokenId);
-    _addDelegate(to, tokenId);
-  }
-
-  //mapping from tokenId to the delegate address
-  mapping(uint256 => address) private _delegates;
-
-  // mapping from delegate address to token count
-  mapping(address => uint256) private _delegateBalances;
-
-  // mapping from delegate to the list of delegated token Ids
-  mapping(address => mapping(uint256 => uint256)) private _delegatedTokens;
-
-  // maping from token ID to the index of the delegates token list
-  mapping(uint256 => uint256) private _delegatedTokensIndex;
-
-  function balanceOfDelegate(address delegate) public view returns (uint256) {
-    require(delegate != address(0), '!address(0)');
-    return _delegateBalances[delegate];
-  }
-
-  function delegatedTo(uint256 tokenId) public view returns (address) {
-    address delegate = _delegates[tokenId];
-    return delegate;
-  }
-
-  function tokenOfDelegateByIndex(address delegate, uint256 index) public view returns (uint256) {
-    require(index < _delegateBalances[delegate], 'out of bounds');
-    return _delegatedTokens[delegate][index];
-  }
-
-  function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize) internal virtual override {
-    super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
-    uint256 tokenId = firstTokenId;
-    if (from == address(0)) {
-      _addDelegate(to, tokenId);
+    // function for minting should add the token to the delegate and increase the balance
+    function _addDelegate(address to, uint256 tokenId) private {
+        require(to != address(0), "!address(0)");
+        uint256 length = _delegateBalances[to];
+        _delegatedTokens[to][length] = tokenId;
+        _delegatedTokensIndex[tokenId] = length;
+        _delegates[tokenId] = to;
+        _delegateBalances[to] += 1;
+        emit TokenDelegated(tokenId, to);
     }
-    if (to == address(0)) { 
-      _removeDelegate(tokenId);
+
+    // function for burning should reduce the balances and set the token mapped to 0x0 address
+    function _removeDelegate(uint256 tokenId) private {
+        address from = _delegates[tokenId];
+        require(from != address(0), "!address(0)");
+        uint256 lastTokenIndex = _delegateBalances[from] - 1;
+        uint256 tokenIndex = _delegatedTokensIndex[tokenId];
+        if (tokenIndex != lastTokenIndex) {
+            uint256 lastTokenId = _delegatedTokens[from][lastTokenIndex];
+            _delegatedTokens[from][tokenIndex] = lastTokenId;
+            _delegatedTokensIndex[lastTokenId] = tokenIndex;
+        }
+        delete _delegatedTokensIndex[tokenId];
+        delete _delegatedTokens[from][lastTokenIndex];
+        _delegateBalances[from] -= 1;
+        _delegates[tokenId] = address(0);
+        emit DelegateRemoved(tokenId, from);
     }
-  }
+
+    // function for transfering should reduce the balances of from by 1, increase the balances of to by 1, and set the delegate address To
+    function _transferDelegate(address to, uint256 tokenId) internal {
+        _removeDelegate(tokenId);
+        _addDelegate(to, tokenId);
+    }
+
+    //mapping from tokenId to the delegate address
+    mapping(uint256 => address) private _delegates;
+
+    // mapping from delegate address to token count
+    mapping(address => uint256) private _delegateBalances;
+
+    // mapping from delegate to the list of delegated token Ids
+    mapping(address => mapping(uint256 => uint256)) private _delegatedTokens;
+
+    // maping from token ID to the index of the delegates token list
+    mapping(uint256 => uint256) private _delegatedTokensIndex;
+
+    function balanceOfDelegate(address delegate) public view returns (uint256) {
+        require(delegate != address(0), "!address(0)");
+        return _delegateBalances[delegate];
+    }
+
+    function delegatedTo(uint256 tokenId) public view returns (address) {
+        address delegate = _delegates[tokenId];
+        return delegate;
+    }
+
+    function tokenOfDelegateByIndex(
+        address delegate,
+        uint256 index
+    ) public view returns (uint256) {
+        require(index < _delegateBalances[delegate], "out of bounds");
+        return _delegatedTokens[delegate][index];
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 firstTokenId,
+        uint256 batchSize
+    ) internal virtual override {
+        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+        uint256 tokenId = firstTokenId;
+        if (from == address(0)) {
+            _addDelegate(to, tokenId);
+        }
+        if (to == address(0)) {
+            _removeDelegate(tokenId);
+        }
+    }
 }
 
 // lib/Locked_VestingTokenPlans/contracts/LockupPlans/TokenLockupPlans.sol
@@ -4259,361 +4911,450 @@ abstract contract ERC721Delegate is PlanDelegator {
 /// 5. Segmenting plans: Beneficiaries can segment a single lockup into  smaller chunks for subdelegation of tokens, or to use in defi with smaller chunks
 /// 6. Combingin Plans: Beneficiaries can combine plans that have the same details in one larger chunk for easier bulk management
 
-contract TokenLockupPlans is ERC721Delegate, LockupStorage, ReentrancyGuard, URIAdmin {
-  /// @notice uses counters for incrementing token IDs which are the planIds
-  using Counters for Counters.Counter;
-  Counters.Counter private _planIds;
+contract TokenLockupPlans is
+    ERC721Delegate,
+    LockupStorage,
+    ReentrancyGuard,
+    URIAdmin
+{
+    /// @notice uses counters for incrementing token IDs which are the planIds
+    using Counters for Counters.Counter;
+    Counters.Counter private _planIds;
 
-  constructor(string memory name, string memory symbol) ERC721(name, symbol) {
-    uriAdmin = msg.sender;
-  }
-
-  function _baseURI() internal view override returns (string memory) {
-    return baseURI;
-  }
-
-  /****CORE EXTERNAL FUNCTIONS*********************************************************************************************************************************************/
-  /// @notice function to create a lockup plan.
-  /// @dev this function will pull the tokens into this contract for escrow, increment the planIds, mint an NFT to the recipient, and create the storage Plan and map it to the newly minted NFT token ID in storage
-  /// @param recipient the address of the recipient and beneficiary of the plan
-  /// @param token the address of the ERC20 token
-  /// @param amount the amount of tokens to be locked in the plan
-  /// @param start the start date of the lockup plan, unix time
-  /// @param cliff a cliff date which is a discrete date where tokens are not unlocked until this date, and then vest in a large single chunk on the cliff date
-  /// @param rate the amount of tokens that vest in a single period
-  /// @param period the amount of time in between each unlock time stamp, in seconds. A period of 1 means that tokens vest every second in a 'streaming' style.
-  function createPlan(
-    address recipient,
-    address token,
-    uint256 amount,
-    uint256 start,
-    uint256 cliff,
-    uint256 rate,
-    uint256 period
-  ) external nonReentrant returns (uint256 newPlanId) {
-    require(recipient != address(0), '0_recipient');
-    require(token != address(0), '0_token');
-    (uint256 end, bool valid) = TimelockLibrary.validateEnd(start, cliff, amount, rate, period);
-    require(valid);
-    _planIds.increment();
-    newPlanId = _planIds.current();
-    TransferHelper.transferTokens(token, msg.sender, address(this), amount);
-    plans[newPlanId] = Plan(token, amount, start, cliff, rate, period);
-    _safeMint(recipient, newPlanId);
-    emit PlanCreated(newPlanId, recipient, token, amount, start, cliff, end, rate, period);
-  }
-
-  /// @notice function for a beneficiary to redeem unlocked tokens from a group of plans
-  /// @dev this will call an internal function for processing the actual redemption of tokens, which will withdraw unlocked tokens and deliver them to the beneficiary
-  /// @dev this function will redeem all claimable and unlocked tokens up to the current block.timestamp
-  /// @param planIds is the array of the NFT planIds that are to be redeemed. If any have no redeemable balance they will be skipped.
-  function redeemPlans(uint256[] calldata planIds) external nonReentrant {
-    _redeemPlans(planIds, block.timestamp);
-  }
-
-  /// @notice function for a beneficiary to redeem unlocked tokens from a group of plans
-  /// @dev this will call an internal function for processing the actual redemption of tokens, which will withdraw unlocked tokens and deliver them to the beneficiary
-  /// @dev this function will redeem only a partial amount of tokens based on a redemption timestamp that is in the past. This allows holders to redeem less than their fully unlocked amount for various reasons
-  /// @param planIds is the array of the NFT planIds that are to be redeemed. If any have no redeemable balance they will be skipped.
-  /// @param redemptionTime is the timestamp which will calculate the amount of tokens redeemable and redeem them based on that timestamp
-  function partialRedeemPlans(uint256[] calldata planIds, uint256 redemptionTime) external nonReentrant {
-    require(redemptionTime < block.timestamp, '!future');
-    _redeemPlans(planIds, redemptionTime);
-  }
-
-  /// @notice this function will redeem all plans owned by a single wallet - useful for custodians or other intermeidaries that do not have the ability to lookup individual planIds
-  /// @dev this will iterate through all of the plans owned by the wallet based on the ERC721Enumerable backbone, and redeem each one with a redemption time of the current block.timestamp
-  function redeemAllPlans() external nonReentrant {
-    uint256 balance = balanceOf(msg.sender);
-    uint256[] memory planIds = new uint256[](balance);
-    for (uint256 i; i < balance; i++) {
-      uint256 planId = tokenOfOwnerByIndex(msg.sender, i);
-      planIds[i] = planId;
+    constructor(string memory name, string memory symbol) ERC721(name, symbol) {
+        uriAdmin = msg.sender;
     }
-    _redeemPlans(planIds, block.timestamp);
-  }
 
-  /// @notice function for an owner of a lockup plan to segment a single plan into multiple chunks; segments.
-  /// @dev the single plan can be divided up into many segments in this transaction, but care must be taken to ensure that the array is processed in a proper order
-  /// if the tokens are send in the wrong order the function will revert becuase the amount of the segment could be larger than the original plan.
-  /// this function iterates through the segment amounts and breaks up the same original plan into smaller sizes
-  /// each time a segment happens it is always with the single planId, which will generate a new NFT for each new segment, and the original plan is updated in storage
-  /// the original plan amount newPlanAmount + segmentAmount && original plan Rate = newPlanRate + segmentRate
-  /// @dev Segmenting plans where the segment amount is not divisible by the rate will result in a new End date that is 1 period farther than the original plan
-  /// @param planId is the plan that is going to be segmented
-  /// @param segmentAmounts is the array of amounts of each individual segment, which must each be smaller than the plan when it is being segmented.
-  function segmentPlan(
-    uint256 planId,
-    uint256[] memory segmentAmounts
-  ) external nonReentrant returns (uint256[] memory newPlanIds) {
-    newPlanIds = new uint256[](segmentAmounts.length);
-    for (uint256 i; i < segmentAmounts.length; i++) {
-      uint256 newPlanId = _segmentPlan(planId, segmentAmounts[i]);
-      newPlanIds[i] = newPlanId;
+    function _baseURI() internal view override returns (string memory) {
+        return baseURI;
     }
-  }
 
-  /// @notice this function combines the functionality of segmenting plans and then immediately delegating the new semgent plans to a delegate address
-  /// @dev this function does NOT delegate the original planId at all, it will only delegate the newly create segments
-  /// @param planId is the plan that will be segmented (and not delegated)
-  /// @param segmentAmounts is the array of each segment amount
-  /// @param delegatees is the array of delegatees that each new segment will be delegated to
-  function segmentAndDelegatePlans(
-    uint256 planId,
-    uint256[] memory segmentAmounts,
-    address[] memory delegatees
-  ) external nonReentrant returns (uint256[] memory newPlanIds) {
-    require(segmentAmounts.length == delegatees.length, 'length_error');
-    newPlanIds = new uint256[](segmentAmounts.length);
-    for (uint256 i; i < segmentAmounts.length; i++) {
-      uint256 newPlanId = _segmentPlan(planId, segmentAmounts[i]);
-      _delegateToken(delegatees[i], newPlanId);
-      newPlanIds[i] = newPlanId;
+    /****CORE EXTERNAL FUNCTIONS*********************************************************************************************************************************************/
+    /// @notice function to create a lockup plan.
+    /// @dev this function will pull the tokens into this contract for escrow, increment the planIds, mint an NFT to the recipient, and create the storage Plan and map it to the newly minted NFT token ID in storage
+    /// @param recipient the address of the recipient and beneficiary of the plan
+    /// @param token the address of the ERC20 token
+    /// @param amount the amount of tokens to be locked in the plan
+    /// @param start the start date of the lockup plan, unix time
+    /// @param cliff a cliff date which is a discrete date where tokens are not unlocked until this date, and then vest in a large single chunk on the cliff date
+    /// @param rate the amount of tokens that vest in a single period
+    /// @param period the amount of time in between each unlock time stamp, in seconds. A period of 1 means that tokens vest every second in a 'streaming' style.
+    function createPlan(
+        address recipient,
+        address token,
+        uint256 amount,
+        uint256 start,
+        uint256 cliff,
+        uint256 rate,
+        uint256 period
+    ) external nonReentrant returns (uint256 newPlanId) {
+        require(recipient != address(0), "0_recipient");
+        require(token != address(0), "0_token");
+        (uint256 end, bool valid) = TimelockLibrary.validateEnd(
+            start,
+            cliff,
+            amount,
+            rate,
+            period
+        );
+        require(valid);
+        _planIds.increment();
+        newPlanId = _planIds.current();
+        TransferHelper.transferTokens(token, msg.sender, address(this), amount);
+        plans[newPlanId] = Plan(token, amount, start, cliff, rate, period);
+        _safeMint(recipient, newPlanId);
+        emit PlanCreated(
+            newPlanId,
+            recipient,
+            token,
+            amount,
+            start,
+            cliff,
+            end,
+            rate,
+            period
+        );
     }
-  }
 
-  /// @notice this function allows a beneficiary of two plans that share the same details to combine them into a single surviving plan
-  /// @dev the plans must have the same details except the amount and rate, but must share the same end date to be combined
-  /// @param planId0 is the planId of a first plan to be combined
-  /// @param planId1 is the planId of a second plan to be combined
-  function combinePlans(uint256 planId0, uint256 planId1) external nonReentrant returns (uint256 survivingPlanId) {
-    survivingPlanId = _combinePlans(planId0, planId1);
-  }
-
-  /****EXTERNAL VOTING & DELEGATION FUNCTIONS*********************************************************************************************************************************************/
-  /// @notice delegation functions do not move any tokens and do not alter any information about the lockup plan object.
-  /// the specifically delegate the NFTs using the ERC721Delegate.sol extension.
-  /// Use the dedicated snapshot strategy 'hedgey-delegate' to leverage the delegation functions for voting with snapshot
-
-  /// @notice function to delegate an individual NFT tokenId to another wallet address.
-  /// @dev by default all plans are self delegated, this allows for the owner of a plan to delegate their NFT to a different address.
-  /// This calls the internal _delegateToken function from ERC721Delegate.sol contract
-  /// @param planId is the token Id of the NFT and lockup plan to be delegated
-  /// @param delegatee is the address that the plan will be delegated to
-  function delegate(uint256 planId, address delegatee) external nonReentrant {
-    _delegateToken(delegatee, planId);
-  }
-
-  /// @notice functeion to delegate multiple plans to multiple delegates in a single transaction
-  /// @dev this also calls the internal _delegateToken function from ERC721Delegate.sol to delegate an NFT to another wallet.
-  /// @dev this function iterates through the array of plans and delegatees, delegating each individual NFT.
-  /// @param planIds is the array of planIds that will be delegated
-  /// @param delegatees is the array of addresses that each corresponding planId will be delegated to
-  function delegatePlans(uint256[] calldata planIds, address[] calldata delegatees) external nonReentrant {
-    require(planIds.length == delegatees.length, 'array error');
-    for (uint256 i; i < planIds.length; i++) {
-      _delegateToken(delegatees[i], planIds[i]);
+    /// @notice function for a beneficiary to redeem unlocked tokens from a group of plans
+    /// @dev this will call an internal function for processing the actual redemption of tokens, which will withdraw unlocked tokens and deliver them to the beneficiary
+    /// @dev this function will redeem all claimable and unlocked tokens up to the current block.timestamp
+    /// @param planIds is the array of the NFT planIds that are to be redeemed. If any have no redeemable balance they will be skipped.
+    function redeemPlans(uint256[] calldata planIds) external nonReentrant {
+        _redeemPlans(planIds, block.timestamp);
     }
-  }
 
-  /// @notice function to delegate all plans related to a specific token to a single delegatee address
-  /// @dev this function pulls the balances of a wallet, checks that the token in the lockup plan matches the token input param, and then delegates it to the delegatee
-  /// @param token is the address of the ERC20 tokens that are locked in the lockup plans desired to be delegated
-  /// @param delegatee is the address of the delegate that all of the NFTs / plans will be delegated to.
-  function delegateAll(address token, address delegatee) external nonReentrant {
-    uint256 balance = balanceOf(msg.sender);
-    for (uint256 i; i < balance; i++) {
-      uint256 planId = tokenOfOwnerByIndex(msg.sender, i);
-      if (plans[planId].token == token) _delegateToken(delegatee, planId);
+    /// @notice function for a beneficiary to redeem unlocked tokens from a group of plans
+    /// @dev this will call an internal function for processing the actual redemption of tokens, which will withdraw unlocked tokens and deliver them to the beneficiary
+    /// @dev this function will redeem only a partial amount of tokens based on a redemption timestamp that is in the past. This allows holders to redeem less than their fully unlocked amount for various reasons
+    /// @param planIds is the array of the NFT planIds that are to be redeemed. If any have no redeemable balance they will be skipped.
+    /// @param redemptionTime is the timestamp which will calculate the amount of tokens redeemable and redeem them based on that timestamp
+    function partialRedeemPlans(
+        uint256[] calldata planIds,
+        uint256 redemptionTime
+    ) external nonReentrant {
+        require(redemptionTime < block.timestamp, "!future");
+        _redeemPlans(planIds, redemptionTime);
     }
-  }
 
-  function transferAndDelegate(uint256 planId, address from, address to) external virtual nonReentrant {
-    safeTransferFrom(from, to, planId);
-    _transferDelegate(to, planId);
-  }
-
-  /****CORE INTERNAL FUNCTIONS*********************************************************************************************************************************************/
-
-  /// @notice function that will intake an array of planIds and a redemption time, and then check the balances that are available to be redeemed
-  /// @dev if the nft has an available balance, it is then passed on to the _redeemPlan function for further processing
-  /// if there is no balance to be redeemed, the plan is skipped from being processed
-  /// @param planIds is the array of plans to be redeemed
-  /// @param redemptionTime is the requested redemption time, either the current block.timestamp or a timestamp from the past, but must be greater than the start date
-  function _redeemPlans(uint256[] memory planIds, uint256 redemptionTime) internal {
-    for (uint256 i; i < planIds.length; i++) {
-      (uint256 balance, uint256 remainder, uint256 latestUnlock) = planBalanceOf(
-        planIds[i],
-        block.timestamp,
-        redemptionTime
-      );
-      if (balance > 0) _redeemPlan(planIds[i], balance, remainder, latestUnlock);
+    /// @notice this function will redeem all plans owned by a single wallet - useful for custodians or other intermeidaries that do not have the ability to lookup individual planIds
+    /// @dev this will iterate through all of the plans owned by the wallet based on the ERC721Enumerable backbone, and redeem each one with a redemption time of the current block.timestamp
+    function redeemAllPlans() external nonReentrant {
+        uint256 balance = balanceOf(msg.sender);
+        uint256[] memory planIds = new uint256[](balance);
+        for (uint256 i; i < balance; i++) {
+            uint256 planId = tokenOfOwnerByIndex(msg.sender, i);
+            planIds[i] = planId;
+        }
+        _redeemPlans(planIds, block.timestamp);
     }
-  }
 
-  /// @notice internal function that process the redemption for a single lockup plan
-  /// @dev this takes the inputs from the _redeemPlans and processes the redemption delivering the available balance of redeemable tokens to the beneficiary
-  /// if the plan is fully redeemed, as defined that the balance == amount, then the plan is deleted and NFT burned
-  // if the plan is not fully redeemed, then the storage of start and amount are updated to reflect the remaining amount and most recent time redeemed for the new start date
-  /// @param planId is the id of the lockup plan and NFT
-  /// @param balance is the available redeemable balance
-  /// @param remainder is the amount of tokens that are still lcoked in the plan, and will be the new amount in the plan storage
-  /// @param latestUnlock is the most recent timestamp for when redemption occured. Because periods may be longer than 1 second,
-  /// the latestUnlock time may be the current block time, or the timestamp of the most recent period timestamp
-  function _redeemPlan(uint256 planId, uint256 balance, uint256 remainder, uint256 latestUnlock) internal {
-    require(ownerOf(planId) == msg.sender, '!owner');
-    address token = plans[planId].token;
-    if (remainder == 0) {
-      delete plans[planId];
-      _burn(planId);
-    } else {
-      plans[planId].amount = remainder;
-      plans[planId].start = latestUnlock;
+    /// @notice function for an owner of a lockup plan to segment a single plan into multiple chunks; segments.
+    /// @dev the single plan can be divided up into many segments in this transaction, but care must be taken to ensure that the array is processed in a proper order
+    /// if the tokens are send in the wrong order the function will revert becuase the amount of the segment could be larger than the original plan.
+    /// this function iterates through the segment amounts and breaks up the same original plan into smaller sizes
+    /// each time a segment happens it is always with the single planId, which will generate a new NFT for each new segment, and the original plan is updated in storage
+    /// the original plan amount newPlanAmount + segmentAmount && original plan Rate = newPlanRate + segmentRate
+    /// @dev Segmenting plans where the segment amount is not divisible by the rate will result in a new End date that is 1 period farther than the original plan
+    /// @param planId is the plan that is going to be segmented
+    /// @param segmentAmounts is the array of amounts of each individual segment, which must each be smaller than the plan when it is being segmented.
+    function segmentPlan(
+        uint256 planId,
+        uint256[] memory segmentAmounts
+    ) external nonReentrant returns (uint256[] memory newPlanIds) {
+        newPlanIds = new uint256[](segmentAmounts.length);
+        for (uint256 i; i < segmentAmounts.length; i++) {
+            uint256 newPlanId = _segmentPlan(planId, segmentAmounts[i]);
+            newPlanIds[i] = newPlanId;
+        }
     }
-    TransferHelper.withdrawTokens(token, msg.sender, balance);
-    emit PlanRedeemed(planId, balance, remainder, latestUnlock);
-  }
 
-  /// @notice the internal function for segmenting a single plan into two
-  /// @dev the function takes a plan, performs some checks that the segment amount cannot be 0 and must be strictly less than the original plan amount
-  /// then it will subtract the segmentamount from the original plan amount to get the new plan amount
-  /// then it will get a new pro-rata rate for the newplan based on the new plan amount divided by the original plan amount
-  /// while this pro-rata new rate is not perfect because of unitization (ie no decimal suppport), the segment rate is calculated by subtracting the new plan rate from the original plan rate
-  /// because the newplan amount and segment amount == original plan amount, and the new plan rate + segment rate == original plan rate, the beneficiary will still unlock the same number of tokens at approximatley the same rate
-  /// however because of uneven division, the end dates of each of the new rates may be different than the original rate. We check to make sure that the new end is farther than the original end
-  /// so that tokens do not unlock early, and then it is a valid segment.
-  /// finally a new NFT is minted with the Segment plan details
-  /// and the storage of the original plan amount and rate is updated with the newplan amount and rate.
-  /// @param planId is the id of the lockup plan
-  /// @param segmentAmount is the amount of tokens to be segmented off from the original plan and created into a new segment plan
-  function _segmentPlan(uint256 planId, uint256 segmentAmount) internal returns (uint256 newPlanId) {
-    require(ownerOf(planId) == msg.sender, '!owner');
-    Plan memory plan = plans[planId];
-    require(segmentAmount < plan.amount, 'amount error');
-    require(segmentAmount > 0, '0_segment');
-    uint256 end = TimelockLibrary.endDate(plan.start, plan.amount, plan.rate, plan.period);
-    _planIds.increment();
-    newPlanId = _planIds.current();
-    uint256 planAmount = plan.amount - segmentAmount;
-    (uint256 planRate, uint256 segmentRate, uint256 planEnd, uint256 segmentEnd) = TimelockLibrary
-      .calculateSegmentRates(
-        plan.rate,
-        plan.amount,
-        planAmount,
-        segmentAmount,
-        plan.start,
-        end,
-        plan.period,
-        plan.cliff
-      );
-    uint256 endCheck = segmentOriginalEnd[planId] == 0 ? end : segmentOriginalEnd[planId];
-    require(planEnd >= endCheck, 'plan end error');
-    require(segmentEnd >= endCheck, 'segmentEnd error');
-    plans[planId].amount = planAmount;
-    plans[planId].rate = planRate;
-    _safeMint(msg.sender, newPlanId);
-    plans[newPlanId] = Plan(plan.token, segmentAmount, plan.start, plan.cliff, segmentRate, plan.period);
-    if (segmentOriginalEnd[planId] == 0) {
-      segmentOriginalEnd[planId] = end;
-      segmentOriginalEnd[newPlanId] = end;
-    } else {
-      segmentOriginalEnd[newPlanId] = segmentOriginalEnd[planId];
+    /// @notice this function combines the functionality of segmenting plans and then immediately delegating the new semgent plans to a delegate address
+    /// @dev this function does NOT delegate the original planId at all, it will only delegate the newly create segments
+    /// @param planId is the plan that will be segmented (and not delegated)
+    /// @param segmentAmounts is the array of each segment amount
+    /// @param delegatees is the array of delegatees that each new segment will be delegated to
+    function segmentAndDelegatePlans(
+        uint256 planId,
+        uint256[] memory segmentAmounts,
+        address[] memory delegatees
+    ) external nonReentrant returns (uint256[] memory newPlanIds) {
+        require(segmentAmounts.length == delegatees.length, "length_error");
+        newPlanIds = new uint256[](segmentAmounts.length);
+        for (uint256 i; i < segmentAmounts.length; i++) {
+            uint256 newPlanId = _segmentPlan(planId, segmentAmounts[i]);
+            _delegateToken(delegatees[i], newPlanId);
+            newPlanIds[i] = newPlanId;
+        }
     }
-    emit PlanSegmented(
-      planId,
-      newPlanId,
-      planAmount,
-      planRate,
-      segmentAmount,
-      segmentRate,
-      plan.start,
-      plan.cliff,
-      plan.period,
-      planEnd,
-      segmentEnd
-    );
-  }
 
-  /// @notice this funtion allows the holder of two plans that have the same parameters to combine them into a single surviving plan
-  /// @dev all of the details of the plans must be the same except the amounts and rates may be different
-  /// this function will check that the owners are the same, the ERC20 tokens are the same, the start, cliff and periods are the same.
-  /// then it performs some checks on the end dates to ensure that either the end dates are the same, or if the user is combining previously segmented plans,
-  /// that the original end dates of those segments are the same.
-  /// if everything checks out, and the new end date of the combined plan will result in an end date equal to or later than the two plans, then they can be combined
-  /// combining plans will delete the plan1 and burn the NFT related to it
-  /// and then update the storage of the plan0 with the combined amount and combined rate
-  /// @param planId0 is the planId of the first plan in the combination
-  /// @param planId1 is the planId of a second plan to be combined
-  function _combinePlans(uint256 planId0, uint256 planId1) internal returns (uint256 survivingPlan) {
-    require(planId0 != planId1, 'same plan');
-    require(ownerOf(planId0) == msg.sender, '!owner');
-    require(ownerOf(planId1) == msg.sender, '!owner');
-    Plan memory plan0 = plans[planId0];
-    Plan memory plan1 = plans[planId1];
-    require(plan0.token == plan1.token, 'token error');
-    require(plan0.start == plan1.start, 'start error');
-    require(plan0.cliff == plan1.cliff, 'cliff error');
-    require(plan0.period == plan1.period, 'period error');
-    uint256 plan0End = TimelockLibrary.endDate(plan0.start, plan0.amount, plan0.rate, plan0.period);
-    uint256 plan1End = TimelockLibrary.endDate(plan1.start, plan1.amount, plan1.rate, plan1.period);
-    require(
-      plan0End == plan1End ||
-        (segmentOriginalEnd[planId0] == segmentOriginalEnd[planId1] && segmentOriginalEnd[planId0] != 0),
-      'end error'
-    );
-    plans[planId0].amount += plans[planId1].amount;
-    (uint256 survivorRate, uint256 survivorEnd) = TimelockLibrary.calculateCombinedRate(
-      plan0.amount + plan1.amount,
-      plan0.rate + plan1.rate,
-      plan0.start,
-      plan0.period,
-      plan0End
-    );
-    plans[planId0].rate = survivorRate;
-    if (survivorEnd < plan0End) {
-      require(
-        survivorEnd == segmentOriginalEnd[planId0] || survivorEnd == segmentOriginalEnd[planId1],
-        'original end error'
-      );
+    /// @notice this function allows a beneficiary of two plans that share the same details to combine them into a single surviving plan
+    /// @dev the plans must have the same details except the amount and rate, but must share the same end date to be combined
+    /// @param planId0 is the planId of a first plan to be combined
+    /// @param planId1 is the planId of a second plan to be combined
+    function combinePlans(
+        uint256 planId0,
+        uint256 planId1
+    ) external nonReentrant returns (uint256 survivingPlanId) {
+        survivingPlanId = _combinePlans(planId0, planId1);
     }
-    delete plans[planId1];
-    _burn(planId1);
-    survivingPlan = planId0;
-    emit PlansCombined(
-      planId0,
-      planId1,
-      survivingPlan,
-      plans[planId0].amount,
-      survivorRate,
-      plan0.start,
-      plan0.cliff,
-      plan0.period,
-      survivorEnd
-    );
-  }
 
-  /****VIEW VOTING FUNCTIONS*********************************************************************************************************************************************/
+    /****EXTERNAL VOTING & DELEGATION FUNCTIONS*********************************************************************************************************************************************/
+    /// @notice delegation functions do not move any tokens and do not alter any information about the lockup plan object.
+    /// the specifically delegate the NFTs using the ERC721Delegate.sol extension.
+    /// Use the dedicated snapshot strategy 'hedgey-delegate' to leverage the delegation functions for voting with snapshot
 
-  /// @notice this function will pull all of the unclaimed tokens for a specific holder across all of their plans, based on a single ERC20 token
-  /// very useful for snapshot voting, and other view functionalities
-  /// @param holder is the address of the beneficiary who owns the lockup plan(s)
-  /// @param token is the ERC20 address of the token that is stored across the lockup plans
-  function lockedBalances(address holder, address token) external view returns (uint256 lockedBalance) {
-    uint256 holdersBalance = balanceOf(holder);
-    for (uint256 i; i < holdersBalance; i++) {
-      uint256 planId = tokenOfOwnerByIndex(holder, i);
-      Plan memory plan = plans[planId];
-      if (token == plan.token) {
-        lockedBalance += plan.amount;
-      }
+    /// @notice function to delegate an individual NFT tokenId to another wallet address.
+    /// @dev by default all plans are self delegated, this allows for the owner of a plan to delegate their NFT to a different address.
+    /// This calls the internal _delegateToken function from ERC721Delegate.sol contract
+    /// @param planId is the token Id of the NFT and lockup plan to be delegated
+    /// @param delegatee is the address that the plan will be delegated to
+    function delegate(uint256 planId, address delegatee) external nonReentrant {
+        _delegateToken(delegatee, planId);
     }
-  }
 
-  /// @notice this function will pull all of the tokens locked in lockup plans for a specific delegate
-  /// this is useful for the snapshot strategy hedgey-delegate, polling this function based on the wallet signed into snapshot
-  /// by default all NFTs are self-delegated when they are minted.
-  /// @param delegatee is the address of the delegate where NFTs have been delegated to
-  /// @param token is the address of the ERC20 token that is locked in lockup plans and has been delegated
-  function delegatedBalances(address delegatee, address token) external view returns (uint256 delegatedBalance) {
-    uint256 delegateBalance = balanceOfDelegate(delegatee);
-    for (uint256 i; i < delegateBalance; i++) {
-      uint256 planId = tokenOfDelegateByIndex(delegatee, i);
-      Plan memory plan = plans[planId];
-      if (token == plan.token) {
-        delegatedBalance += plan.amount;
-      }
+    /// @notice functeion to delegate multiple plans to multiple delegates in a single transaction
+    /// @dev this also calls the internal _delegateToken function from ERC721Delegate.sol to delegate an NFT to another wallet.
+    /// @dev this function iterates through the array of plans and delegatees, delegating each individual NFT.
+    /// @param planIds is the array of planIds that will be delegated
+    /// @param delegatees is the array of addresses that each corresponding planId will be delegated to
+    function delegatePlans(
+        uint256[] calldata planIds,
+        address[] calldata delegatees
+    ) external nonReentrant {
+        require(planIds.length == delegatees.length, "array error");
+        for (uint256 i; i < planIds.length; i++) {
+            _delegateToken(delegatees[i], planIds[i]);
+        }
     }
-  }
+
+    /// @notice function to delegate all plans related to a specific token to a single delegatee address
+    /// @dev this function pulls the balances of a wallet, checks that the token in the lockup plan matches the token input param, and then delegates it to the delegatee
+    /// @param token is the address of the ERC20 tokens that are locked in the lockup plans desired to be delegated
+    /// @param delegatee is the address of the delegate that all of the NFTs / plans will be delegated to.
+    function delegateAll(
+        address token,
+        address delegatee
+    ) external nonReentrant {
+        uint256 balance = balanceOf(msg.sender);
+        for (uint256 i; i < balance; i++) {
+            uint256 planId = tokenOfOwnerByIndex(msg.sender, i);
+            if (plans[planId].token == token) _delegateToken(delegatee, planId);
+        }
+    }
+
+    function transferAndDelegate(
+        uint256 planId,
+        address from,
+        address to
+    ) external virtual nonReentrant {
+        safeTransferFrom(from, to, planId);
+        _transferDelegate(to, planId);
+    }
+
+    /****CORE INTERNAL FUNCTIONS*********************************************************************************************************************************************/
+
+    /// @notice function that will intake an array of planIds and a redemption time, and then check the balances that are available to be redeemed
+    /// @dev if the nft has an available balance, it is then passed on to the _redeemPlan function for further processing
+    /// if there is no balance to be redeemed, the plan is skipped from being processed
+    /// @param planIds is the array of plans to be redeemed
+    /// @param redemptionTime is the requested redemption time, either the current block.timestamp or a timestamp from the past, but must be greater than the start date
+    function _redeemPlans(
+        uint256[] memory planIds,
+        uint256 redemptionTime
+    ) internal {
+        for (uint256 i; i < planIds.length; i++) {
+            (
+                uint256 balance,
+                uint256 remainder,
+                uint256 latestUnlock
+            ) = planBalanceOf(planIds[i], block.timestamp, redemptionTime);
+            if (balance > 0)
+                _redeemPlan(planIds[i], balance, remainder, latestUnlock);
+        }
+    }
+
+    /// @notice internal function that process the redemption for a single lockup plan
+    /// @dev this takes the inputs from the _redeemPlans and processes the redemption delivering the available balance of redeemable tokens to the beneficiary
+    /// if the plan is fully redeemed, as defined that the balance == amount, then the plan is deleted and NFT burned
+    // if the plan is not fully redeemed, then the storage of start and amount are updated to reflect the remaining amount and most recent time redeemed for the new start date
+    /// @param planId is the id of the lockup plan and NFT
+    /// @param balance is the available redeemable balance
+    /// @param remainder is the amount of tokens that are still lcoked in the plan, and will be the new amount in the plan storage
+    /// @param latestUnlock is the most recent timestamp for when redemption occured. Because periods may be longer than 1 second,
+    /// the latestUnlock time may be the current block time, or the timestamp of the most recent period timestamp
+    function _redeemPlan(
+        uint256 planId,
+        uint256 balance,
+        uint256 remainder,
+        uint256 latestUnlock
+    ) internal {
+        require(ownerOf(planId) == msg.sender, "!owner");
+        address token = plans[planId].token;
+        if (remainder == 0) {
+            delete plans[planId];
+            _burn(planId);
+        } else {
+            plans[planId].amount = remainder;
+            plans[planId].start = latestUnlock;
+        }
+        TransferHelper.withdrawTokens(token, msg.sender, balance);
+        emit PlanRedeemed(planId, balance, remainder, latestUnlock);
+    }
+
+    /// @notice the internal function for segmenting a single plan into two
+    /// @dev the function takes a plan, performs some checks that the segment amount cannot be 0 and must be strictly less than the original plan amount
+    /// then it will subtract the segmentamount from the original plan amount to get the new plan amount
+    /// then it will get a new pro-rata rate for the newplan based on the new plan amount divided by the original plan amount
+    /// while this pro-rata new rate is not perfect because of unitization (ie no decimal suppport), the segment rate is calculated by subtracting the new plan rate from the original plan rate
+    /// because the newplan amount and segment amount == original plan amount, and the new plan rate + segment rate == original plan rate, the beneficiary will still unlock the same number of tokens at approximatley the same rate
+    /// however because of uneven division, the end dates of each of the new rates may be different than the original rate. We check to make sure that the new end is farther than the original end
+    /// so that tokens do not unlock early, and then it is a valid segment.
+    /// finally a new NFT is minted with the Segment plan details
+    /// and the storage of the original plan amount and rate is updated with the newplan amount and rate.
+    /// @param planId is the id of the lockup plan
+    /// @param segmentAmount is the amount of tokens to be segmented off from the original plan and created into a new segment plan
+    function _segmentPlan(
+        uint256 planId,
+        uint256 segmentAmount
+    ) internal returns (uint256 newPlanId) {
+        require(ownerOf(planId) == msg.sender, "!owner");
+        Plan memory plan = plans[planId];
+        require(segmentAmount < plan.amount, "amount error");
+        require(segmentAmount > 0, "0_segment");
+        uint256 end = TimelockLibrary.endDate(
+            plan.start,
+            plan.amount,
+            plan.rate,
+            plan.period
+        );
+        _planIds.increment();
+        newPlanId = _planIds.current();
+        uint256 planAmount = plan.amount - segmentAmount;
+        (
+            uint256 planRate,
+            uint256 segmentRate,
+            uint256 planEnd,
+            uint256 segmentEnd
+        ) = TimelockLibrary.calculateSegmentRates(
+                plan.rate,
+                plan.amount,
+                planAmount,
+                segmentAmount,
+                plan.start,
+                end,
+                plan.period,
+                plan.cliff
+            );
+        uint256 endCheck = segmentOriginalEnd[planId] == 0
+            ? end
+            : segmentOriginalEnd[planId];
+        require(planEnd >= endCheck, "plan end error");
+        require(segmentEnd >= endCheck, "segmentEnd error");
+        plans[planId].amount = planAmount;
+        plans[planId].rate = planRate;
+        _safeMint(msg.sender, newPlanId);
+        plans[newPlanId] = Plan(
+            plan.token,
+            segmentAmount,
+            plan.start,
+            plan.cliff,
+            segmentRate,
+            plan.period
+        );
+        if (segmentOriginalEnd[planId] == 0) {
+            segmentOriginalEnd[planId] = end;
+            segmentOriginalEnd[newPlanId] = end;
+        } else {
+            segmentOriginalEnd[newPlanId] = segmentOriginalEnd[planId];
+        }
+        emit PlanSegmented(
+            planId,
+            newPlanId,
+            planAmount,
+            planRate,
+            segmentAmount,
+            segmentRate,
+            plan.start,
+            plan.cliff,
+            plan.period,
+            planEnd,
+            segmentEnd
+        );
+    }
+
+    /// @notice this funtion allows the holder of two plans that have the same parameters to combine them into a single surviving plan
+    /// @dev all of the details of the plans must be the same except the amounts and rates may be different
+    /// this function will check that the owners are the same, the ERC20 tokens are the same, the start, cliff and periods are the same.
+    /// then it performs some checks on the end dates to ensure that either the end dates are the same, or if the user is combining previously segmented plans,
+    /// that the original end dates of those segments are the same.
+    /// if everything checks out, and the new end date of the combined plan will result in an end date equal to or later than the two plans, then they can be combined
+    /// combining plans will delete the plan1 and burn the NFT related to it
+    /// and then update the storage of the plan0 with the combined amount and combined rate
+    /// @param planId0 is the planId of the first plan in the combination
+    /// @param planId1 is the planId of a second plan to be combined
+    function _combinePlans(
+        uint256 planId0,
+        uint256 planId1
+    ) internal returns (uint256 survivingPlan) {
+        require(planId0 != planId1, "same plan");
+        require(ownerOf(planId0) == msg.sender, "!owner");
+        require(ownerOf(planId1) == msg.sender, "!owner");
+        Plan memory plan0 = plans[planId0];
+        Plan memory plan1 = plans[planId1];
+        require(plan0.token == plan1.token, "token error");
+        require(plan0.start == plan1.start, "start error");
+        require(plan0.cliff == plan1.cliff, "cliff error");
+        require(plan0.period == plan1.period, "period error");
+        uint256 plan0End = TimelockLibrary.endDate(
+            plan0.start,
+            plan0.amount,
+            plan0.rate,
+            plan0.period
+        );
+        uint256 plan1End = TimelockLibrary.endDate(
+            plan1.start,
+            plan1.amount,
+            plan1.rate,
+            plan1.period
+        );
+        require(
+            plan0End == plan1End ||
+                (segmentOriginalEnd[planId0] == segmentOriginalEnd[planId1] &&
+                    segmentOriginalEnd[planId0] != 0),
+            "end error"
+        );
+        plans[planId0].amount += plans[planId1].amount;
+        (uint256 survivorRate, uint256 survivorEnd) = TimelockLibrary
+            .calculateCombinedRate(
+                plan0.amount + plan1.amount,
+                plan0.rate + plan1.rate,
+                plan0.start,
+                plan0.period,
+                plan0End
+            );
+        plans[planId0].rate = survivorRate;
+        if (survivorEnd < plan0End) {
+            require(
+                survivorEnd == segmentOriginalEnd[planId0] ||
+                    survivorEnd == segmentOriginalEnd[planId1],
+                "original end error"
+            );
+        }
+        delete plans[planId1];
+        _burn(planId1);
+        survivingPlan = planId0;
+        emit PlansCombined(
+            planId0,
+            planId1,
+            survivingPlan,
+            plans[planId0].amount,
+            survivorRate,
+            plan0.start,
+            plan0.cliff,
+            plan0.period,
+            survivorEnd
+        );
+    }
+
+    /****VIEW VOTING FUNCTIONS*********************************************************************************************************************************************/
+
+    /// @notice this function will pull all of the unclaimed tokens for a specific holder across all of their plans, based on a single ERC20 token
+    /// very useful for snapshot voting, and other view functionalities
+    /// @param holder is the address of the beneficiary who owns the lockup plan(s)
+    /// @param token is the ERC20 address of the token that is stored across the lockup plans
+    function lockedBalances(
+        address holder,
+        address token
+    ) external view returns (uint256 lockedBalance) {
+        uint256 holdersBalance = balanceOf(holder);
+        for (uint256 i; i < holdersBalance; i++) {
+            uint256 planId = tokenOfOwnerByIndex(holder, i);
+            Plan memory plan = plans[planId];
+            if (token == plan.token) {
+                lockedBalance += plan.amount;
+            }
+        }
+    }
+
+    /// @notice this function will pull all of the tokens locked in lockup plans for a specific delegate
+    /// this is useful for the snapshot strategy hedgey-delegate, polling this function based on the wallet signed into snapshot
+    /// by default all NFTs are self-delegated when they are minted.
+    /// @param delegatee is the address of the delegate where NFTs have been delegated to
+    /// @param token is the address of the ERC20 token that is locked in lockup plans and has been delegated
+    function delegatedBalances(
+        address delegatee,
+        address token
+    ) external view returns (uint256 delegatedBalance) {
+        uint256 delegateBalance = balanceOfDelegate(delegatee);
+        for (uint256 i; i < delegateBalance; i++) {
+            uint256 planId = tokenOfDelegateByIndex(delegatee, i);
+            Plan memory plan = plans[planId];
+            if (token == plan.token) {
+                delegatedBalance += plan.amount;
+            }
+        }
+    }
 }
 
 // lib/flax/src/HedgeyAdapter.sol
@@ -4637,15 +5378,16 @@ contract HedgeyAdapter {
         //linear streaming per second
         uint rate = amount / durationInSeconds;
         _flax.approve(address(tokenLockupPlan), amount);
-        return tokenLockupPlan.createPlan(
-            recipient,
-            address(_flax),
-            amount,
-            block.timestamp + 60,
-            0,
-            rate,
-            1
-        );
+        return
+            tokenLockupPlan.createPlan(
+                recipient,
+                address(_flax),
+                amount,
+                block.timestamp + 60,
+                0,
+                rate,
+                1
+            );
     }
 }
 
@@ -4867,7 +5609,7 @@ contract Issuer is IIssuer, Ownable_0, ReentrancyGuard_1 {
 /**@notice In order to re-use audited code, the UniswapHelper is copied from Limbo
  * to function as the price tilting contract for Flax.
  */
-/*Ownable,*/ contract Tilter is Ownable_1,ReentrancyGuard_2, ITilter {
+/*Ownable,*/ contract Tilter is Ownable_1, ReentrancyGuard_2, ITilter {
     uint256 constant SPOT = 1e10;
     bool _enabled;
 
@@ -4992,7 +5734,11 @@ contract Issuer is IIssuer, Ownable_0, ReentrancyGuard_1 {
             );
             IWETH(VARS.ref_token).deposit{value: msg.value}();
         } else {
-            IERC20_2(inputToken).transferFrom(msg.sender, address(this), amount);
+            IERC20_2(inputToken).transferFrom(
+                msg.sender,
+                address(this),
+                amount
+            );
         }
         _issue(amount, recipient);
     }
@@ -5172,4 +5918,3 @@ contract TilterFactory is Ownable_1 {
         refByTilter[tilter] = address(0);
     }
 }
-
