@@ -30,6 +30,7 @@ export interface IssuerInterface extends utils.Interface {
   functions: {
     "couponContract()": FunctionFragment;
     "currentPrice(address)": FunctionFragment;
+    "customTokenReward()": FunctionFragment;
     "issue(address,uint256,address)": FunctionFragment;
     "lockupConfig()": FunctionFragment;
     "owner()": FunctionFragment;
@@ -37,9 +38,11 @@ export interface IssuerInterface extends utils.Interface {
     "setCouponContract(address)": FunctionFragment;
     "setDependencies(address,address)": FunctionFragment;
     "setLimits(uint256,uint256,uint256,uint256)": FunctionFragment;
-    "setTokenInfo(address,bool,bool,uint256)": FunctionFragment;
-    "setTokensInfo(address[],bool[],bool[],uint256[])": FunctionFragment;
+    "setRewardConfig(address,uint256,uint256)": FunctionFragment;
+    "setTokenInfo(address,bool,bool,uint256,bool)": FunctionFragment;
+    "setTokensInfo(address[],bool[],bool[],uint256[],bool[])": FunctionFragment;
     "stream()": FunctionFragment;
+    "targetedMintsPerWeek()": FunctionFragment;
     "transferOwnership(address)": FunctionFragment;
     "whitelist(address)": FunctionFragment;
   };
@@ -48,6 +51,7 @@ export interface IssuerInterface extends utils.Interface {
     nameOrSignatureOrTopic:
       | "couponContract"
       | "currentPrice"
+      | "customTokenReward"
       | "issue"
       | "lockupConfig"
       | "owner"
@@ -55,9 +59,11 @@ export interface IssuerInterface extends utils.Interface {
       | "setCouponContract"
       | "setDependencies"
       | "setLimits"
+      | "setRewardConfig"
       | "setTokenInfo"
       | "setTokensInfo"
       | "stream"
+      | "targetedMintsPerWeek"
       | "transferOwnership"
       | "whitelist"
   ): FunctionFragment;
@@ -69,6 +75,10 @@ export interface IssuerInterface extends utils.Interface {
   encodeFunctionData(
     functionFragment: "currentPrice",
     values: [string]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "customTokenReward",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "issue",
@@ -96,14 +106,22 @@ export interface IssuerInterface extends utils.Interface {
     values: [BigNumberish, BigNumberish, BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "setRewardConfig",
+    values: [string, BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "setTokenInfo",
-    values: [string, boolean, boolean, BigNumberish]
+    values: [string, boolean, boolean, BigNumberish, boolean]
   ): string;
   encodeFunctionData(
     functionFragment: "setTokensInfo",
-    values: [string[], boolean[], boolean[], BigNumberish[]]
+    values: [string[], boolean[], boolean[], BigNumberish[], boolean[]]
   ): string;
   encodeFunctionData(functionFragment: "stream", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "targetedMintsPerWeek",
+    values?: undefined
+  ): string;
   encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [string]
@@ -116,6 +134,10 @@ export interface IssuerInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "currentPrice",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "customTokenReward",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "issue", data: BytesLike): Result;
@@ -138,6 +160,10 @@ export interface IssuerInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "setLimits", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "setRewardConfig",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "setTokenInfo",
     data: BytesLike
   ): Result;
@@ -146,6 +172,10 @@ export interface IssuerInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "stream", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "targetedMintsPerWeek",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "transferOwnership",
     data: BytesLike
@@ -251,6 +281,16 @@ export interface Issuer extends BaseContract {
       overrides?: CallOverrides
     ): Promise<[BigNumber] & { teraCouponPerToken: BigNumber }>;
 
+    customTokenReward(
+      overrides?: CallOverrides
+    ): Promise<
+      [string, BigNumber, BigNumber] & {
+        token: string;
+        minFlaxMintThreshold: BigNumber;
+        rewardSize: BigNumber;
+      }
+    >;
+
     issue(
       inputToken: string,
       amount: BigNumberish,
@@ -293,11 +333,19 @@ export interface Issuer extends BaseContract {
       overrides?: Overrides & { from?: string }
     ): Promise<ContractTransaction>;
 
+    setRewardConfig(
+      token: string,
+      minFlaxMintThreshold: BigNumberish,
+      rewardSize: BigNumberish,
+      overrides?: Overrides & { from?: string }
+    ): Promise<ContractTransaction>;
+
     setTokenInfo(
       token: string,
       enabled: boolean,
       burnable: boolean,
       startingRate: BigNumberish,
+      extraRewardEnabled: boolean,
       overrides?: Overrides & { from?: string }
     ): Promise<ContractTransaction>;
 
@@ -306,10 +354,13 @@ export interface Issuer extends BaseContract {
       enabled: boolean[],
       burnable: boolean[],
       startingRate: BigNumberish[],
+      extraRewardEnabled: boolean[],
       overrides?: Overrides & { from?: string }
     ): Promise<ContractTransaction>;
 
     stream(overrides?: CallOverrides): Promise<[string]>;
+
+    targetedMintsPerWeek(overrides?: CallOverrides): Promise<[BigNumber]>;
 
     transferOwnership(
       newOwner: string,
@@ -320,11 +371,12 @@ export interface Issuer extends BaseContract {
       arg0: string,
       overrides?: CallOverrides
     ): Promise<
-      [boolean, boolean, BigNumber, BigNumber] & {
+      [boolean, boolean, BigNumber, BigNumber, boolean] & {
         enabled: boolean;
         burnable: boolean;
         lastminted_timestamp: BigNumber;
         teraCouponPerTokenPerSecond: BigNumber;
+        extraRewardEnabled: boolean;
       }
     >;
   };
@@ -332,6 +384,16 @@ export interface Issuer extends BaseContract {
   couponContract(overrides?: CallOverrides): Promise<string>;
 
   currentPrice(token: string, overrides?: CallOverrides): Promise<BigNumber>;
+
+  customTokenReward(
+    overrides?: CallOverrides
+  ): Promise<
+    [string, BigNumber, BigNumber] & {
+      token: string;
+      minFlaxMintThreshold: BigNumber;
+      rewardSize: BigNumber;
+    }
+  >;
 
   issue(
     inputToken: string,
@@ -375,11 +437,19 @@ export interface Issuer extends BaseContract {
     overrides?: Overrides & { from?: string }
   ): Promise<ContractTransaction>;
 
+  setRewardConfig(
+    token: string,
+    minFlaxMintThreshold: BigNumberish,
+    rewardSize: BigNumberish,
+    overrides?: Overrides & { from?: string }
+  ): Promise<ContractTransaction>;
+
   setTokenInfo(
     token: string,
     enabled: boolean,
     burnable: boolean,
     startingRate: BigNumberish,
+    extraRewardEnabled: boolean,
     overrides?: Overrides & { from?: string }
   ): Promise<ContractTransaction>;
 
@@ -388,10 +458,13 @@ export interface Issuer extends BaseContract {
     enabled: boolean[],
     burnable: boolean[],
     startingRate: BigNumberish[],
+    extraRewardEnabled: boolean[],
     overrides?: Overrides & { from?: string }
   ): Promise<ContractTransaction>;
 
   stream(overrides?: CallOverrides): Promise<string>;
+
+  targetedMintsPerWeek(overrides?: CallOverrides): Promise<BigNumber>;
 
   transferOwnership(
     newOwner: string,
@@ -402,11 +475,12 @@ export interface Issuer extends BaseContract {
     arg0: string,
     overrides?: CallOverrides
   ): Promise<
-    [boolean, boolean, BigNumber, BigNumber] & {
+    [boolean, boolean, BigNumber, BigNumber, boolean] & {
       enabled: boolean;
       burnable: boolean;
       lastminted_timestamp: BigNumber;
       teraCouponPerTokenPerSecond: BigNumber;
+      extraRewardEnabled: boolean;
     }
   >;
 
@@ -414,6 +488,16 @@ export interface Issuer extends BaseContract {
     couponContract(overrides?: CallOverrides): Promise<string>;
 
     currentPrice(token: string, overrides?: CallOverrides): Promise<BigNumber>;
+
+    customTokenReward(
+      overrides?: CallOverrides
+    ): Promise<
+      [string, BigNumber, BigNumber] & {
+        token: string;
+        minFlaxMintThreshold: BigNumber;
+        rewardSize: BigNumber;
+      }
+    >;
 
     issue(
       inputToken: string,
@@ -455,11 +539,19 @@ export interface Issuer extends BaseContract {
       overrides?: CallOverrides
     ): Promise<void>;
 
+    setRewardConfig(
+      token: string,
+      minFlaxMintThreshold: BigNumberish,
+      rewardSize: BigNumberish,
+      overrides?: CallOverrides
+    ): Promise<void>;
+
     setTokenInfo(
       token: string,
       enabled: boolean,
       burnable: boolean,
       startingRate: BigNumberish,
+      extraRewardEnabled: boolean,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -468,10 +560,13 @@ export interface Issuer extends BaseContract {
       enabled: boolean[],
       burnable: boolean[],
       startingRate: BigNumberish[],
+      extraRewardEnabled: boolean[],
       overrides?: CallOverrides
     ): Promise<void>;
 
     stream(overrides?: CallOverrides): Promise<string>;
+
+    targetedMintsPerWeek(overrides?: CallOverrides): Promise<BigNumber>;
 
     transferOwnership(
       newOwner: string,
@@ -482,11 +577,12 @@ export interface Issuer extends BaseContract {
       arg0: string,
       overrides?: CallOverrides
     ): Promise<
-      [boolean, boolean, BigNumber, BigNumber] & {
+      [boolean, boolean, BigNumber, BigNumber, boolean] & {
         enabled: boolean;
         burnable: boolean;
         lastminted_timestamp: BigNumber;
         teraCouponPerTokenPerSecond: BigNumber;
+        extraRewardEnabled: boolean;
       }
     >;
   };
@@ -544,6 +640,8 @@ export interface Issuer extends BaseContract {
 
     currentPrice(token: string, overrides?: CallOverrides): Promise<BigNumber>;
 
+    customTokenReward(overrides?: CallOverrides): Promise<BigNumber>;
+
     issue(
       inputToken: string,
       amount: BigNumberish,
@@ -578,11 +676,19 @@ export interface Issuer extends BaseContract {
       overrides?: Overrides & { from?: string }
     ): Promise<BigNumber>;
 
+    setRewardConfig(
+      token: string,
+      minFlaxMintThreshold: BigNumberish,
+      rewardSize: BigNumberish,
+      overrides?: Overrides & { from?: string }
+    ): Promise<BigNumber>;
+
     setTokenInfo(
       token: string,
       enabled: boolean,
       burnable: boolean,
       startingRate: BigNumberish,
+      extraRewardEnabled: boolean,
       overrides?: Overrides & { from?: string }
     ): Promise<BigNumber>;
 
@@ -591,10 +697,13 @@ export interface Issuer extends BaseContract {
       enabled: boolean[],
       burnable: boolean[],
       startingRate: BigNumberish[],
+      extraRewardEnabled: boolean[],
       overrides?: Overrides & { from?: string }
     ): Promise<BigNumber>;
 
     stream(overrides?: CallOverrides): Promise<BigNumber>;
+
+    targetedMintsPerWeek(overrides?: CallOverrides): Promise<BigNumber>;
 
     transferOwnership(
       newOwner: string,
@@ -611,6 +720,8 @@ export interface Issuer extends BaseContract {
       token: string,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
+
+    customTokenReward(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     issue(
       inputToken: string,
@@ -646,11 +757,19 @@ export interface Issuer extends BaseContract {
       overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
 
+    setRewardConfig(
+      token: string,
+      minFlaxMintThreshold: BigNumberish,
+      rewardSize: BigNumberish,
+      overrides?: Overrides & { from?: string }
+    ): Promise<PopulatedTransaction>;
+
     setTokenInfo(
       token: string,
       enabled: boolean,
       burnable: boolean,
       startingRate: BigNumberish,
+      extraRewardEnabled: boolean,
       overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
 
@@ -659,10 +778,15 @@ export interface Issuer extends BaseContract {
       enabled: boolean[],
       burnable: boolean[],
       startingRate: BigNumberish[],
+      extraRewardEnabled: boolean[],
       overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
 
     stream(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
+    targetedMintsPerWeek(
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
 
     transferOwnership(
       newOwner: string,

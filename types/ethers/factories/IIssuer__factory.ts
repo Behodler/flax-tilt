@@ -98,6 +98,29 @@ const _abi = [
   },
   {
     type: "function",
+    name: "setRewardConfig",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "minFlaxMintThreshold",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "rewardSize",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "setTokenInfo",
     inputs: [
       {
@@ -119,6 +142,11 @@ const _abi = [
         name: "startingRate",
         type: "uint256",
         internalType: "uint256",
+      },
+      {
+        name: "extraRewardEnabled",
+        type: "bool",
+        internalType: "bool",
       },
     ],
     outputs: [],
@@ -147,6 +175,11 @@ const _abi = [
         name: "startingRate",
         type: "uint256[]",
         internalType: "uint256[]",
+      },
+      {
+        name: "extraRewardEnabled",
+        type: "bool[]",
+        internalType: "bool[]",
       },
     ],
     outputs: [],

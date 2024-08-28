@@ -146,7 +146,7 @@ contract TilterTest is Test {
         // END UNI SETUP
 
         //REGISTER PAIR ON BONFIRE
-        bonfire.setTokenInfo(address(referencePair), true, false, 11574074);
+        bonfire.setTokenInfo(address(referencePair), true, false, 11574074,false);
         //END REGISTER PAIR ON BONFIRE
 
         //SETUP TILTER
@@ -175,7 +175,7 @@ contract TilterTest is Test {
         );
 
         //REGISTER PAIR ON BONFIRE
-        bonfire.setTokenInfo(address(referencePair), true, false, 11574074);
+        bonfire.setTokenInfo(address(referencePair), true, false, 11574074,false);
         //END REGISTER PAIR ON BONFIRE
 
         //set up issuer

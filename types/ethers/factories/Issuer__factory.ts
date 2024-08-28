@@ -57,6 +57,29 @@ const _abi = [
   },
   {
     type: "function",
+    name: "customTokenReward",
+    inputs: [],
+    outputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "minFlaxMintThreshold",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "rewardSize",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "issue",
     inputs: [
       {
@@ -188,6 +211,29 @@ const _abi = [
   },
   {
     type: "function",
+    name: "setRewardConfig",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "minFlaxMintThreshold",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "rewardSize",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "setTokenInfo",
     inputs: [
       {
@@ -209,6 +255,11 @@ const _abi = [
         name: "startingRate",
         type: "uint256",
         internalType: "uint256",
+      },
+      {
+        name: "extraRewardEnabled",
+        type: "bool",
+        internalType: "bool",
       },
     ],
     outputs: [],
@@ -238,6 +289,11 @@ const _abi = [
         type: "uint256[]",
         internalType: "uint256[]",
       },
+      {
+        name: "extraRewardEnabled",
+        type: "bool[]",
+        internalType: "bool[]",
+      },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -251,6 +307,19 @@ const _abi = [
         name: "",
         type: "address",
         internalType: "contract HedgeyAdapter",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "targetedMintsPerWeek",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
       },
     ],
     stateMutability: "view",
@@ -298,6 +367,11 @@ const _abi = [
         name: "teraCouponPerTokenPerSecond",
         type: "uint256",
         internalType: "uint256",
+      },
+      {
+        name: "extraRewardEnabled",
+        type: "bool",
+        internalType: "bool",
       },
     ],
     stateMutability: "view",
@@ -466,6 +540,17 @@ const _abi = [
     type: "error",
     name: "ReentrancyGuardReentrantCall",
     inputs: [],
+  },
+  {
+    type: "error",
+    name: "minFlaxMintThresholdTooLow",
+    inputs: [
+      {
+        name: "threshold",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
   },
 ] as const;
 

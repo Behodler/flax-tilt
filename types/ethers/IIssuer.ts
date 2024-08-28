@@ -32,8 +32,9 @@ export interface IIssuerInterface extends utils.Interface {
     "issue(address,uint256,address)": FunctionFragment;
     "setCouponContract(address)": FunctionFragment;
     "setLimits(uint256,uint256,uint256,uint256)": FunctionFragment;
-    "setTokenInfo(address,bool,bool,uint256)": FunctionFragment;
-    "setTokensInfo(address[],bool[],bool[],uint256[])": FunctionFragment;
+    "setRewardConfig(address,uint256,uint256)": FunctionFragment;
+    "setTokenInfo(address,bool,bool,uint256,bool)": FunctionFragment;
+    "setTokensInfo(address[],bool[],bool[],uint256[],bool[])": FunctionFragment;
   };
 
   getFunction(
@@ -42,6 +43,7 @@ export interface IIssuerInterface extends utils.Interface {
       | "issue"
       | "setCouponContract"
       | "setLimits"
+      | "setRewardConfig"
       | "setTokenInfo"
       | "setTokensInfo"
   ): FunctionFragment;
@@ -63,12 +65,16 @@ export interface IIssuerInterface extends utils.Interface {
     values: [BigNumberish, BigNumberish, BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "setRewardConfig",
+    values: [string, BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "setTokenInfo",
-    values: [string, boolean, boolean, BigNumberish]
+    values: [string, boolean, boolean, BigNumberish, boolean]
   ): string;
   encodeFunctionData(
     functionFragment: "setTokensInfo",
-    values: [string[], boolean[], boolean[], BigNumberish[]]
+    values: [string[], boolean[], boolean[], BigNumberish[], boolean[]]
   ): string;
 
   decodeFunctionResult(
@@ -81,6 +87,10 @@ export interface IIssuerInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "setLimits", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "setRewardConfig",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "setTokenInfo",
     data: BytesLike
@@ -193,11 +203,19 @@ export interface IIssuer extends BaseContract {
       overrides?: Overrides & { from?: string }
     ): Promise<ContractTransaction>;
 
+    setRewardConfig(
+      token: string,
+      minFlaxMintThreshold: BigNumberish,
+      rewardSize: BigNumberish,
+      overrides?: Overrides & { from?: string }
+    ): Promise<ContractTransaction>;
+
     setTokenInfo(
       token: string,
       enabled: boolean,
       burnable: boolean,
       startingRate: BigNumberish,
+      extraRewardEnabled: boolean,
       overrides?: Overrides & { from?: string }
     ): Promise<ContractTransaction>;
 
@@ -206,6 +224,7 @@ export interface IIssuer extends BaseContract {
       enabled: boolean[],
       burnable: boolean[],
       startingRate: BigNumberish[],
+      extraRewardEnabled: boolean[],
       overrides?: Overrides & { from?: string }
     ): Promise<ContractTransaction>;
   };
@@ -232,11 +251,19 @@ export interface IIssuer extends BaseContract {
     overrides?: Overrides & { from?: string }
   ): Promise<ContractTransaction>;
 
+  setRewardConfig(
+    token: string,
+    minFlaxMintThreshold: BigNumberish,
+    rewardSize: BigNumberish,
+    overrides?: Overrides & { from?: string }
+  ): Promise<ContractTransaction>;
+
   setTokenInfo(
     token: string,
     enabled: boolean,
     burnable: boolean,
     startingRate: BigNumberish,
+    extraRewardEnabled: boolean,
     overrides?: Overrides & { from?: string }
   ): Promise<ContractTransaction>;
 
@@ -245,6 +272,7 @@ export interface IIssuer extends BaseContract {
     enabled: boolean[],
     burnable: boolean[],
     startingRate: BigNumberish[],
+    extraRewardEnabled: boolean[],
     overrides?: Overrides & { from?: string }
   ): Promise<ContractTransaction>;
 
@@ -271,11 +299,19 @@ export interface IIssuer extends BaseContract {
       overrides?: CallOverrides
     ): Promise<void>;
 
+    setRewardConfig(
+      token: string,
+      minFlaxMintThreshold: BigNumberish,
+      rewardSize: BigNumberish,
+      overrides?: CallOverrides
+    ): Promise<void>;
+
     setTokenInfo(
       token: string,
       enabled: boolean,
       burnable: boolean,
       startingRate: BigNumberish,
+      extraRewardEnabled: boolean,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -284,6 +320,7 @@ export interface IIssuer extends BaseContract {
       enabled: boolean[],
       burnable: boolean[],
       startingRate: BigNumberish[],
+      extraRewardEnabled: boolean[],
       overrides?: CallOverrides
     ): Promise<void>;
   };
@@ -350,11 +387,19 @@ export interface IIssuer extends BaseContract {
       overrides?: Overrides & { from?: string }
     ): Promise<BigNumber>;
 
+    setRewardConfig(
+      token: string,
+      minFlaxMintThreshold: BigNumberish,
+      rewardSize: BigNumberish,
+      overrides?: Overrides & { from?: string }
+    ): Promise<BigNumber>;
+
     setTokenInfo(
       token: string,
       enabled: boolean,
       burnable: boolean,
       startingRate: BigNumberish,
+      extraRewardEnabled: boolean,
       overrides?: Overrides & { from?: string }
     ): Promise<BigNumber>;
 
@@ -363,6 +408,7 @@ export interface IIssuer extends BaseContract {
       enabled: boolean[],
       burnable: boolean[],
       startingRate: BigNumberish[],
+      extraRewardEnabled: boolean[],
       overrides?: Overrides & { from?: string }
     ): Promise<BigNumber>;
   };
@@ -393,11 +439,19 @@ export interface IIssuer extends BaseContract {
       overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
 
+    setRewardConfig(
+      token: string,
+      minFlaxMintThreshold: BigNumberish,
+      rewardSize: BigNumberish,
+      overrides?: Overrides & { from?: string }
+    ): Promise<PopulatedTransaction>;
+
     setTokenInfo(
       token: string,
       enabled: boolean,
       burnable: boolean,
       startingRate: BigNumberish,
+      extraRewardEnabled: boolean,
       overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
 
@@ -406,6 +460,7 @@ export interface IIssuer extends BaseContract {
       enabled: boolean[],
       burnable: boolean[],
       startingRate: BigNumberish[],
+      extraRewardEnabled: boolean[],
       overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
   };

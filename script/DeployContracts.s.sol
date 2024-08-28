@@ -99,11 +99,26 @@ contract DeployContracts is Script {
         flax.setMinter(address(issuer), true);
         pyroSCX_EYE.approve(address(issuer), uint(type(uint).max));
         issuer.setLimits(1000, 60, 180, 1);
-        issuer.setTokenInfo(address(eye), true, true, 10_000_000_000);
-        issuer.setTokenInfo(address(scx), true, true, 10_000_000_000);
-        issuer.setTokenInfo(address(pyroSCX_EYE), true, true, 10_000_000_000);
+        issuer.setRewardConfig(address(eye), 10000 ether, 1000 ether);
+        eye.mint(50_000 ether, address(issuer));
 
-        issuer.setTokenInfo(address(eye_scx_lp), true, false, 10_000_000_000);
+        issuer.setTokenInfo(address(eye), true, true, 10_000_000_000, false);
+        issuer.setTokenInfo(address(scx), true, true, 10_000_000_000, true);
+        issuer.setTokenInfo(
+            address(pyroSCX_EYE),
+            true,
+            true,
+            10_000_000_000,
+            false
+        );
+
+        issuer.setTokenInfo(
+            address(eye_scx_lp),
+            true,
+            false,
+            10_000_000_000,
+            false
+        );
 
         //create pairs
         WETH().deposit{value: 1 ether}();
@@ -178,9 +193,27 @@ contract DeployContracts is Script {
         oracle.RegisterPair(address(flx_uni_pair), 30);
 
         //ISSUER REGISTER PAIR
-        issuer.setTokenInfo(address(flx_weth_pair), true, false, 11574074);
-        issuer.setTokenInfo(address(flx_shib_pair), true, false, 13574074);
-        issuer.setTokenInfo(address(flx_uni_pair), true, false, 10574074);
+        issuer.setTokenInfo(
+            address(flx_weth_pair),
+            true,
+            false,
+            11574074,
+            false
+        );
+        issuer.setTokenInfo(
+            address(flx_shib_pair),
+            true,
+            false,
+            13574074,
+            true
+        );
+        issuer.setTokenInfo(
+            address(flx_uni_pair),
+            true,
+            false,
+            10574074,
+            false
+        );
 
         //Deploy TilterFactory
         TilterFactory tilterFactory = new TilterFactory(
