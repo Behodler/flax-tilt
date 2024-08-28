@@ -75,8 +75,6 @@ contract DeployContracts is Script {
         uint mintedPyro = pyroSCX_EYE.balanceOf(msg.sender);
         pyroSCX_EYE.burn(mintedPyro / 5);
 
-        // TODO: convert the fake LP tokens into real LP tokens
-
         // Deploy Issuer with the address of Coupon
 
         Coupon shiba = new Coupon("Shiba", "Inu");
@@ -99,10 +97,10 @@ contract DeployContracts is Script {
         flax.setMinter(address(issuer), true);
         pyroSCX_EYE.approve(address(issuer), uint(type(uint).max));
         issuer.setLimits(1000, 60, 180, 1);
-        issuer.setRewardConfig(address(eye), 10000 ether, 1000 ether);
+        issuer.setRewardConfig(address(eye), 100 ether, 1000 ether);
         eye.mint(50_000 ether, address(issuer));
 
-        issuer.setTokenInfo(address(eye), true, true, 10_000_000_000, false);
+        issuer.setTokenInfo(address(eye), true, true, 10_000_000_000, true);
         issuer.setTokenInfo(address(scx), true, true, 10_000_000_000, true);
         issuer.setTokenInfo(
             address(pyroSCX_EYE),
@@ -198,7 +196,7 @@ contract DeployContracts is Script {
             true,
             false,
             11574074,
-            false
+            true
         );
         issuer.setTokenInfo(
             address(flx_shib_pair),
