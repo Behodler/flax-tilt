@@ -93,7 +93,7 @@ contract DeployContracts is Script {
             address(flax),
             address(tokenLockupPlan)
         );
-        Issuer issuer = new Issuer(address(flax), address(hedgeyAdapter));
+        Issuer issuer = new Issuer(address(flax), address(hedgeyAdapter),true);
         flax.setMinter(address(issuer), true);
         pyroSCX_EYE.approve(address(issuer), uint(type(uint).max));
         issuer.setLimits(1000, 60, 180, 1);
