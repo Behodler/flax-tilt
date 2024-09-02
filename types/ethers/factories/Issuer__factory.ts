@@ -20,6 +20,11 @@ const _abi = [
         type: "address",
         internalType: "address",
       },
+      {
+        name: "_minter",
+        type: "bool",
+        internalType: "bool",
+      },
     ],
     stateMutability: "nonpayable",
   },
@@ -132,6 +137,19 @@ const _abi = [
   },
   {
     type: "function",
+    name: "minter",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "owner",
     inputs: [],
     outputs: [
@@ -176,6 +194,11 @@ const _abi = [
         name: "hedgeyAdapterAddress",
         type: "address",
         internalType: "address",
+      },
+      {
+        name: "_minter",
+        type: "bool",
+        internalType: "bool",
       },
     ],
     outputs: [],

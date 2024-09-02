@@ -11,6 +11,11 @@
         "name": "streamAddress",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "_minter",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "nonpayable"
@@ -124,6 +129,19 @@
   },
   {
     "type": "function",
+    "name": "minter",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "owner",
     "inputs": [],
     "outputs": [
@@ -168,6 +186,11 @@
         "name": "hedgeyAdapterAddress",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "_minter",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "outputs": [],

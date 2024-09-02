@@ -56,7 +56,7 @@ contract Factory is Test {
         stream = new HedgeyAdapter(address(flax), address(tokenLockup));
 
         //setup BONFIRE
-        issuer = new Issuer(address(flax), address(stream));
+        issuer = new Issuer(address(flax), address(stream),true);
         issuer.setLimits(1000, 2, 10, 4);
 
         //SETUP UNISWAP
@@ -163,7 +163,7 @@ contract Factory is Test {
         MockToken(referenceToken).mint(newRefPair, 10 ether);
         IUniswapV2Pair(newRefPair).mint(address(this));
         newOracle.RegisterPair(newRefPair, 1 hours);
-        Issuer newIssuer = new Issuer(address(newFLX), address(stream));
+        Issuer newIssuer = new Issuer(address(newFLX), address(stream),true);
         tilterFactory.configure(
             newTilter,
             address(newFLX),

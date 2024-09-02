@@ -4671,12 +4671,14 @@ contract Issuer is IIssuer, Ownable_0, ReentrancyGuard_1 {
     LockupConfig public lockupConfig;
     uint public targetedMintsPerWeek;
     CustomTokenRewardConfig public customTokenReward;
+    bool public minter;
 
     constructor(
         address couponAddress,
-        address streamAddress
+        address streamAddress,
+        bool _minter
     ) Ownable_0(msg.sender) {
-        setDependencies(couponAddress, streamAddress);
+        setDependencies(couponAddress, streamAddress, _minter);
     }
 
     function setLimits(
@@ -4757,10 +4759,12 @@ contract Issuer is IIssuer, Ownable_0, ReentrancyGuard_1 {
 
     function setDependencies(
         address couponAddress,
-        address hedgeyAdapterAddress
+        address hedgeyAdapterAddress,
+        bool _minter
     ) public onlyOwner {
         couponContract = ICoupon(couponAddress);
         stream = HedgeyAdapter(hedgeyAdapterAddress);
+        minter = _minter;
     }
 
     function setCouponContract(
@@ -4839,8 +4843,11 @@ contract Issuer is IIssuer, Ownable_0, ReentrancyGuard_1 {
             }
         }
 
-        // Mint coupons
-        couponContract.mint(coupons, address(stream));
+        if (minter) {
+            couponContract.mint(coupons, address(stream));
+        } else {
+            couponContract.transfer(address(stream), coupons);
+        }
         // lockTime = offset + deposit/threshold_size * days_multiple;
         uint lockupDuration = lockupConfig.offset +
             (coupons / (lockupConfig.threshold_size * (1 ether))) *

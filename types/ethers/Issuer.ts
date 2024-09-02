@@ -33,10 +33,11 @@ export interface IssuerInterface extends utils.Interface {
     "customTokenReward()": FunctionFragment;
     "issue(address,uint256,address)": FunctionFragment;
     "lockupConfig()": FunctionFragment;
+    "minter()": FunctionFragment;
     "owner()": FunctionFragment;
     "renounceOwnership()": FunctionFragment;
     "setCouponContract(address)": FunctionFragment;
-    "setDependencies(address,address)": FunctionFragment;
+    "setDependencies(address,address,bool)": FunctionFragment;
     "setLimits(uint256,uint256,uint256,uint256)": FunctionFragment;
     "setRewardConfig(address,uint256,uint256)": FunctionFragment;
     "setTokenInfo(address,bool,bool,uint256,bool)": FunctionFragment;
@@ -54,6 +55,7 @@ export interface IssuerInterface extends utils.Interface {
       | "customTokenReward"
       | "issue"
       | "lockupConfig"
+      | "minter"
       | "owner"
       | "renounceOwnership"
       | "setCouponContract"
@@ -88,6 +90,7 @@ export interface IssuerInterface extends utils.Interface {
     functionFragment: "lockupConfig",
     values?: undefined
   ): string;
+  encodeFunctionData(functionFragment: "minter", values?: undefined): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "renounceOwnership",
@@ -99,7 +102,7 @@ export interface IssuerInterface extends utils.Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "setDependencies",
-    values: [string, string]
+    values: [string, string, boolean]
   ): string;
   encodeFunctionData(
     functionFragment: "setLimits",
@@ -145,6 +148,7 @@ export interface IssuerInterface extends utils.Interface {
     functionFragment: "lockupConfig",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "minter", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
@@ -308,6 +312,8 @@ export interface Issuer extends BaseContract {
       }
     >;
 
+    minter(overrides?: CallOverrides): Promise<[boolean]>;
+
     owner(overrides?: CallOverrides): Promise<[string]>;
 
     renounceOwnership(
@@ -322,6 +328,7 @@ export interface Issuer extends BaseContract {
     setDependencies(
       couponAddress: string,
       hedgeyAdapterAddress: string,
+      _minter: boolean,
       overrides?: Overrides & { from?: string }
     ): Promise<ContractTransaction>;
 
@@ -412,6 +419,8 @@ export interface Issuer extends BaseContract {
     }
   >;
 
+  minter(overrides?: CallOverrides): Promise<boolean>;
+
   owner(overrides?: CallOverrides): Promise<string>;
 
   renounceOwnership(
@@ -426,6 +435,7 @@ export interface Issuer extends BaseContract {
   setDependencies(
     couponAddress: string,
     hedgeyAdapterAddress: string,
+    _minter: boolean,
     overrides?: Overrides & { from?: string }
   ): Promise<ContractTransaction>;
 
@@ -516,6 +526,8 @@ export interface Issuer extends BaseContract {
       }
     >;
 
+    minter(overrides?: CallOverrides): Promise<boolean>;
+
     owner(overrides?: CallOverrides): Promise<string>;
 
     renounceOwnership(overrides?: CallOverrides): Promise<void>;
@@ -528,6 +540,7 @@ export interface Issuer extends BaseContract {
     setDependencies(
       couponAddress: string,
       hedgeyAdapterAddress: string,
+      _minter: boolean,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -651,6 +664,8 @@ export interface Issuer extends BaseContract {
 
     lockupConfig(overrides?: CallOverrides): Promise<BigNumber>;
 
+    minter(overrides?: CallOverrides): Promise<BigNumber>;
+
     owner(overrides?: CallOverrides): Promise<BigNumber>;
 
     renounceOwnership(
@@ -665,6 +680,7 @@ export interface Issuer extends BaseContract {
     setDependencies(
       couponAddress: string,
       hedgeyAdapterAddress: string,
+      _minter: boolean,
       overrides?: Overrides & { from?: string }
     ): Promise<BigNumber>;
 
@@ -732,6 +748,8 @@ export interface Issuer extends BaseContract {
 
     lockupConfig(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
+    minter(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
     owner(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     renounceOwnership(
@@ -746,6 +764,7 @@ export interface Issuer extends BaseContract {
     setDependencies(
       couponAddress: string,
       hedgeyAdapterAddress: string,
+      _minter: boolean,
       overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
 
