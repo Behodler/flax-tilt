@@ -93,8 +93,14 @@ contract DeployContracts is Script {
             address(flax),
             address(tokenLockupPlan)
         );
-        Issuer issuer = new Issuer(address(flax), address(hedgeyAdapter),true);
-        flax.setMinter(address(issuer), true);
+        Issuer issuer = new Issuer(
+            address(flax),
+            address(hedgeyAdapter),
+            false
+        );
+
+        // flax.setMinter(address(issuer), true);
+        flax.mint(100_000 ether, address(issuer));
         pyroSCX_EYE.approve(address(issuer), uint(type(uint).max));
         issuer.setLimits(1000, 60, 180, 1);
         issuer.setRewardConfig(address(eye), 100 ether, 1000 ether);
@@ -195,7 +201,7 @@ contract DeployContracts is Script {
             address(flx_weth_pair),
             true,
             false,
-            11574074,
+            115740740000,
             true
         );
         issuer.setTokenInfo(
@@ -232,10 +238,12 @@ contract DeployContracts is Script {
 
         require(shibTilter != address(0), "shib not created");
         require(uniTilter != address(0), "uniTilter not created");
-
-        flax.setMinter(ethTilterAddress, true);
-        flax.setMinter(shibTilter, true);
-        flax.setMinter(uniTilter, true);
+        flax.mint(100000 ether, ethTilterAddress);
+        flax.mint(23450 ether, shibTilter);
+        flax.mint((11111200 ether) / 1000, uniTilter);
+        // flax.setMinter(ethTilterAddress, true);
+        // flax.setMinter(shibTilter, true);
+        // flax.setMinter(uniTilter, true);
 
         vm.stopBroadcast();
         // Creating a JSON array of input token addresses

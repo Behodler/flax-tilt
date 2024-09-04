@@ -250,7 +250,7 @@ contract TilterTest is Test {
         vm.roll(block.number + 1);
 
         // PASSES TO HERE
-
+        flax.mint(100 ether, address(tilter));
         tilter.issue{value: 1 ether}(address(WETH()), 1 ether, tilterUser);
 
         uint flaxBalanceBeforeRedeem = flax.balanceOf(tilterUser);
@@ -349,7 +349,10 @@ contract TilterTest is Test {
         vm.assertGt(lpTokens_created, 0);
 
         //this should not revert.
-        tilter.refValueOfTilt(purchaseAmount, false);
+        tilter.refValueOfTilt(
+            purchaseAmount,
+            false
+        );
 
         //jump ahead another half hour
         vm.warp(block.timestamp + 1 days + 30 minutes);
@@ -366,6 +369,8 @@ contract TilterTest is Test {
             address(flax),
             1e10
         );
+
+        flax.mint(100 ether, address(tilter));
         vm.prank(tilterUser);
         tilter.issue(address(referenceToken), purchaseAmount, tilterUser);
         vm.stopPrank();

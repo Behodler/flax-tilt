@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.20 ^0.8.20;
+pragma solidity ^0.8.20;
 
 // lib/Locked_VestingTokenPlans/contracts/libraries/TimelockLibrary.sol
 
@@ -3075,7 +3075,7 @@ library UniswapV2Library {
 
 /// @notice Library to help safely transfer tokens and handle ETH wrapping and unwrapping of WETH
 library TransferHelper {
-  using SafeERC20 for IERC20;
+  using SafeERC20 for IERC20_0;
 
   /// @notice Internal function used for standard ERC20 transferFrom method
   /// @notice it contains a pre and post balance check
@@ -3089,10 +3089,10 @@ library TransferHelper {
     address to,
     uint256 amount
   ) internal {
-    uint256 priorBalance = IERC20(token).balanceOf(address(to));
-    require(IERC20(token).balanceOf(from) >= amount, 'THL01');
-    SafeERC20.safeTransferFrom(IERC20(token), from, to, amount);
-    uint256 postBalance = IERC20(token).balanceOf(address(to));
+    uint256 priorBalance = IERC20_0(token).balanceOf(address(to));
+    require(IERC20_0(token).balanceOf(from) >= amount, 'THL01');
+    SafeERC20.safeTransferFrom(IERC20_0(token), from, to, amount);
+    uint256 postBalance = IERC20_0(token).balanceOf(address(to));
     require(postBalance - priorBalance == amount, 'THL02');
   }
 
@@ -3106,9 +3106,9 @@ library TransferHelper {
     address to,
     uint256 amount
   ) internal {
-    uint256 priorBalance = IERC20(token).balanceOf(address(to));
-    SafeERC20.safeTransfer(IERC20(token), to, amount);
-    uint256 postBalance = IERC20(token).balanceOf(address(to));
+    uint256 priorBalance = IERC20_0(token).balanceOf(address(to));
+    SafeERC20.safeTransfer(IERC20_0(token), to, amount);
+    uint256 postBalance = IERC20_0(token).balanceOf(address(to));
     require(postBalance - priorBalance == amount, 'THL02');
   }
 
@@ -4259,7 +4259,7 @@ abstract contract ERC721Delegate is PlanDelegator {
 /// 5. Segmenting plans: Beneficiaries can segment a single lockup into  smaller chunks for subdelegation of tokens, or to use in defi with smaller chunks
 /// 6. Combingin Plans: Beneficiaries can combine plans that have the same details in one larger chunk for easier bulk management
 
-contract TokenLockupPlans is ERC721Delegate, LockupStorage, ReentrancyGuard, URIAdmin {
+contract TokenLockupPlans is ERC721Delegate, LockupStorage, ReentrancyGuard_0, URIAdmin {
   /// @notice uses counters for incrementing token IDs which are the planIds
   using Counters for Counters.Counter;
   Counters.Counter private _planIds;
@@ -4874,7 +4874,7 @@ contract Issuer is IIssuer, Ownable_0, ReentrancyGuard_1 {
 /**@notice In order to re-use audited code, the UniswapHelper is copied from Limbo
  * to function as the price tilting contract for Flax.
  */
-/*Ownable,*/ contract Tilter is Ownable_1,ReentrancyGuard_2, ITilter {
+/*Ownable,*/ contract Tilter is Ownable_1, ReentrancyGuard_2, ITilter {
     uint256 constant SPOT = 1e10;
     bool _enabled;
 
@@ -5049,11 +5049,17 @@ contract Issuer is IIssuer, Ownable_0, ReentrancyGuard_1 {
         //TILT PRICE IN FAVOUR OF FLAX
         //tilt by 60%
         uint flxToMint = (amount * flaxPerRef * 6) / (10 * SPOT);
-
-        ICoupon(VARS.flax).mint(
-            flxToMint,
-            address(VARS.oracleSet.flx_ref_token)
-        );
+        if (block.chainid == 1) {
+            ICoupon(VARS.flax).mint(
+                flxToMint,
+                address(VARS.oracleSet.flx_ref_token)
+            );
+        } else {
+            IERC20_2(VARS.flax).transfer(
+                address(VARS.oracleSet.flx_ref_token),
+                flxToMint
+            );
+        }
 
         IERC20_2(VARS.ref_token).transfer(
             address(VARS.oracleSet.flx_ref_token),

@@ -20,7 +20,7 @@ import "@uniswap/core/libraries/Math.sol";
 /**@notice In order to re-use audited code, the UniswapHelper is copied from Limbo
  * to function as the price tilting contract for Flax.
  */
-/*Ownable,*/ contract Tilter is Ownable,ReentrancyGuard, ITilter {
+/*Ownable,*/ contract Tilter is Ownable, ReentrancyGuard, ITilter {
     uint256 constant SPOT = 1e10;
     bool _enabled;
 
@@ -195,11 +195,17 @@ import "@uniswap/core/libraries/Math.sol";
         //TILT PRICE IN FAVOUR OF FLAX
         //tilt by 60%
         uint flxToMint = (amount * flaxPerRef * 6) / (10 * SPOT);
-
-        ICoupon(VARS.flax).mint(
-            flxToMint,
-            address(VARS.oracleSet.flx_ref_token)
-        );
+        if (block.chainid == 1) {
+            ICoupon(VARS.flax).mint(
+                flxToMint,
+                address(VARS.oracleSet.flx_ref_token)
+            );
+        } else {
+            IERC20(VARS.flax).transfer(
+                address(VARS.oracleSet.flx_ref_token),
+                flxToMint
+            );
+        }
 
         IERC20(VARS.ref_token).transfer(
             address(VARS.oracleSet.flx_ref_token),
